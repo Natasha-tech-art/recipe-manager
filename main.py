@@ -100,3 +100,23 @@ class AuthFrame(ctk.CTkFrame):
 if __name__ == "__main__":
     app = MainApplication()
     app.mainloop()
+    
+    def login(self):
+        username = self.user_entry.get()
+        password = self.pass_entry.get()
+        
+        print(f"Attempting login for: {username}") # DEBUG PRINT
+        
+        try:
+            user = self.controller.db.login_user(username, password)
+            print(f"Database response: {user}") # DEBUG PRINT
+            
+            if user:
+                print("Login successful! Switching screens...") # DEBUG PRINT
+                self.controller.login_success(user)
+            else:
+                print("Login failed: User not found.") # DEBUG PRINT
+                messagebox.showerror("Error", "Incorrect username or password")
+        except Exception as e:
+            print(f"CRITICAL ERROR during login: {e}") # DEBUG PRINT
+            messagebox.showerror("Database Error", str(e))
