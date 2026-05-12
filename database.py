@@ -35,3 +35,19 @@ class Database:
 
     def get_user_recipes(self, username):
         return list(self.recipes.find({"owner": username}))
+    
+    
+    def save_meal_plan(self, plan_data):
+        try:
+            # Upsert logic: if a plan exists for this date, update it; otherwise, create it.
+            return self.meal_plans.update_one(
+                {"date": plan_data["date"], "owner": plan_data["owner"]},
+                {"$set": plan_data},
+                upsert=True
+            )
+        except Exception as e:
+            print(f"Planner Error: {e}")
+            return None
+
+    def get_meal_plan(self, date, username):
+        return self.meal_plans.find_one({"date": date, "owner": username})
