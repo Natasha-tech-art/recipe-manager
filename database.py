@@ -1,0 +1,28 @@
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
+
+class Database:
+    def __init__(self):
+        # Replace the string below with your actual MongoDB URI
+        self.uri = "mongodb+srv://natashabolyn4_db_user:xuOfmtUe3zgxk4AD@recipe-manager.gjr3epx.mongodb.net/?appName=recipe-manager"
+        self.client = MongoClient(self.uri, server_api=ServerApi('1'))
+        self.db = self.client['RecipeManagerDB']
+        
+        # Collections
+        self.recipes = self.db['recipes']
+        self.meal_plans = self.db['meal_plans']
+        self.users = self.db['users']
+
+    def test_connection(self):
+        try:
+            self.client.admin.command('ping')
+            print("Successfully connected to MongoDB!")
+            return True
+        except Exception as e:
+            print(f"Connection failed: {e}")
+            return False
+
+# For testing purposes
+if __name__ == "__main__":
+    db_manager = Database()
+    db_manager.test_connection()
