@@ -26,3 +26,11 @@ class Database:
 if __name__ == "__main__":
     db_manager = Database()
     db_manager.test_connection()
+    
+    def add_recipe(self, recipe_data):
+        try:
+            result = self.recipes.insert_one(recipe_data)
+            return result.inserted_id
+        except Exception as e:
+            print(f"Error adding recipe: {e}")
+            return None
