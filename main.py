@@ -36,3 +36,48 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = RecipeApp(root)
     root.mainloop()
+    
+    def setup_layout(self):
+        # ... (Keep your existing panel code) ...
+        
+        # Add a "New Recipe" button to the left panel
+        self.add_btn = ttk.Button(self.left_panel, text="+ Add New Recipe", command=self.open_add_recipe_window)
+        self.add_btn.pack(fill="x", padx=10, pady=10)
+
+    def open_add_recipe_window(self):
+        # Create a new pop-up window
+        self.add_win = tk.Toplevel(self.root)
+        self.add_win.title("Add New Recipe")
+        self.add_win.geometry("400x500")
+
+        # Basic Fields
+        ttk.Label(self.add_win, text="Recipe Title:").pack(pady=5)
+        self.title_entry = ttk.Entry(self.add_win, width=40)
+        self.title_entry.pack()
+
+        ttk.Label(self.add_win, text="Ingredients (comma separated):").pack(pady=5)
+        self.ing_entry = ttk.Entry(self.add_win, width=40)
+        self.ing_entry.pack()
+
+        ttk.Label(self.add_win, text="Category:").pack(pady=5)
+        self.cat_combo = ttk.Combobox(self.add_win, values=["Breakfast", "Lunch", "Dinner", "Dessert"])
+        self.cat_combo.pack()
+
+        # Save Button
+        ttk.Button(self.add_win, text="Save to Database", command=self.save_recipe).pack(pady=20)
+
+    def save_recipe(self):
+        # Gather data from the form
+        recipe = {
+            "title": self.title_entry.get(),
+            "ingredients": self.ing_entry.get().split(","), # Turns string into a list
+            "category": self.cat_combo.get(),
+            "created_at": "2026-05-12" # Use current date
+        }
+
+        # Send to Database
+        if self.db.add_recipe(recipe):
+            messagebox.showinfo("Success", "Recipe saved to MongoDB!")
+            self.add_win.destroy() # Close the pop-up
+        else:
+            messagebox.showerror("Error", "Failed to save recipe.")
