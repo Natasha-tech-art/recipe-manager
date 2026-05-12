@@ -1,3 +1,4 @@
+import hashlib
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 
@@ -12,6 +13,18 @@ class Database:
         self.recipes = self.db['recipes']
         self.meal_plans = self.db['meal_plans']
         self.users = self.db['users']
+        
+        def create_user(self, username, password):
+            if self.users.find_one({"username": username}):
+                return False, "Username already exists"
+            
+            hashed_password = hashlib.sha256(password.encode()).hexdigest()
+            self.users.insert_one({"username": username, "password": hashed_password})
+            return True, "User created successfully"
+
+    def login_user(self, username, password):
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+        return self.users.find_one({"username": username, "password": hashed_password})
 
     def test_connection(self):
         try:
