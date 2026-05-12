@@ -55,6 +55,30 @@ class MainApplication(ctk.CTk):
         self.planner_frame.pack(side="right", fill="y", padx=(0, 20), pady=20)
         ctk.CTkLabel(self.planner_frame, text="Meal Planner", font=("Helvetica", 18, "bold")).pack(pady=10)
         
+        # 3. Right Panel (Meal Planner)
+        self.planner_frame = ctk.CTkFrame(self.container, width=300)
+        self.planner_frame.pack(side="right", fill="y", padx=(0, 20), pady=20)
+        
+        ctk.CTkLabel(self.planner_frame, text="Meal Planner", font=("Helvetica", 18, "bold")).pack(pady=10)
+
+        # Calendar Widget
+        from tkcalendar import Calendar
+        self.cal = Calendar(self.planner_frame, selectmode='day', date_pattern='y-mm-dd')
+        self.cal.pack(pady=10, padx=10)
+        self.cal.bind("<<CalendarSelected>>", lambda e: self.load_selected_day_plan())
+
+        # Day Plan Display
+        self.day_plan_box = ctk.CTkFrame(self.planner_frame, fg_color="transparent")
+        self.day_plan_box.pack(fill="both", expand=True, padx=10)
+
+        self.plan_vars = {} # To store text values for Breakfast, Lunch, Dinner
+        for meal in ["Breakfast", "Lunch", "Dinner"]:
+            ctk.CTkLabel(self.day_plan_box, text=meal, font=("Helvetica", 12, "gray")).pack(anchor="w")
+            self.plan_vars[meal] = ctk.CTkLabel(self.day_plan_box, text="Empty", font=("Helvetica", 14))
+            self.plan_vars[meal].pack(anchor="w", pady=(0, 10))
+
+        ctk.CTkButton(self.planner_frame, text="Assign Recipe", command=self.assign_to_planner).pack(pady=10)
+        
         self.load_recipes()
 
     def load_recipes(self):
