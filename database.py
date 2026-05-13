@@ -1,6 +1,7 @@
 import hashlib
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
+from bson.objectid import ObjectId
 
 class Database:
     def __init__(self):
