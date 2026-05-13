@@ -51,3 +51,24 @@ class Database:
 
     def get_meal_plan(self, date, username):
         return self.meal_plans.find_one({"date": date, "owner": username})
+    
+    from bson.objectid import ObjectId
+
+# ... inside your Database class ...
+
+    def update_recipe(self, recipe_id, updated_data):
+        try:
+            return self.recipes.update_one(
+                {"_id": ObjectId(recipe_id)}, 
+                {"$set": updated_data}
+            )
+        except Exception as e:
+            print(f"Update Error: {e}")
+            return None
+
+    def delete_recipe(self, recipe_id):
+        try:
+            return self.recipes.delete_one({"_id": ObjectId(recipe_id)})
+        except Exception as e:
+            print(f"Delete Error: {e}")
+            return None
