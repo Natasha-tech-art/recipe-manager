@@ -82,15 +82,48 @@ class MainApplication(ctk.CTk):
         self.load_recipes()
 
     def load_recipes(self):
-        # Clear current list
         for widget in self.recipe_scroll.winfo_children():
             widget.destroy()
             
         recipes = self.db.get_user_recipes(self.current_user['username'])
         for res in recipes:
-            btn = ctk.CTkButton(self.recipe_scroll, text=f"{res['title']} ({res['category']})", 
-                                anchor="w", fg_color="transparent", border_width=1)
+            # We pass the full recipe dictionary 'res' to the view function
+            btn = ctk.CTkButton(
+                self.recipe_scroll, 
+                text=f"{res['title']} ({res['category']})", 
+                anchor="w", fg_color="transparent", border_width=1,
+                command=lambda r=res: self.view_recipe_details(r)
+            )
             btn.pack(fill="x", pady=2, padx=5)
+
+    def view_recipe_details(self, recipe):
+        self.detail_win = ctk.CTkToplevel(self)
+        self.detail_win.title(recipe['title'])
+        self.detail_win.geometry("400x500")
+        self.detail_win.attributes("-topmost", True)
+
+        ctk.CTkLabel(self.detail_win, text=recipe['title'], font=("Helvetica", 22, "bold")).pack(pady=10)
+        
+        # Display Ingredients
+        ings = "\n".join(recipe['ingredients'])
+        ctk.CTkLabel(self.detail_win, text="Ingredients:", font=("Helvetica", 14, "bold")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(self.detail_win, text=ings, justify="left").pack(anchor="w", padx=40, pady=5)
+
+        # Action Buttons
+        btn_frame = ctk.CTkFrame(self.detail_win, fg_color="transparent")
+        btn_frame.pack(side="bottom", pady=20)
+
+        ctk.CTkButton(btn_frame, text="Delete", fg_color="#FF4444", hover_color="#CC0000",
+                      command=lambda: self.confirm_delete(recipe)).pack(side="left", padx=10)
+        
+        # For now, Edit can simply open the Add form with existing data
+        ctk.CTkButton(btn_frame, text="Edit", command=lambda: self.open_edit_recipe(recipe)).pack(side="left", padx=10)
+
+    def confirm_delete(self, recipe):
+        if messagebox.askyesno("Confirm", f"Delete {recipe['title']} permanently?"):
+            self.db.delete_recipe(recipe['_id'])
+            self.detail_win.destroy()
+            self.load_recipes()
 
     def open_add_recipe(self):
         self.add_win = ctk.CTkToplevel(self)
