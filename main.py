@@ -125,25 +125,31 @@ class MainApplication(ctk.CTk):
             self.detail_win.destroy()
             self.load_recipes()
 
-    def open_add_recipe(self):
-        self.add_win = ctk.CTkToplevel(self)
-        self.add_win.title("Add New Recipe")
-        self.add_win.geometry("450x550")
-        self.add_win.attributes("-topmost", True)
+    def open_edit_recipe(self, recipe):
+        self.open_add_recipe() # Open the standard form
+        self.add_win.title(f"Editing: {recipe['title']}")
+        
+        # Pre-fill the data
+        self.title_ent.insert(0, recipe['title'])
+        self.ing_txt.insert("0.0", "\n".join(recipe['ingredients']))
+        self.cat_cmb.set(recipe['category'])
+        
+        # Change the save button command to update instead of create
+        save_btn = [w for w in self.add_win.winfo_children() if isinstance(w, ctk.CTkButton)][0]
+        save_btn.configure(text="Update Recipe", command=lambda: self.save_update(recipe['_id']))
 
-        ctk.CTkLabel(self.add_win, text="Recipe Title").pack(pady=(20,0))
-        self.title_ent = ctk.CTkEntry(self.add_win, width=300)
-        self.title_ent.pack(pady=10)
-
-        ctk.CTkLabel(self.add_win, text="Ingredients (one per line)").pack()
-        self.ing_txt = ctk.CTkTextbox(self.add_win, width=300, height=100)
-        self.ing_txt.pack(pady=10)
-
-        self.cat_cmb = ctk.CTkComboBox(self.add_win, values=["Breakfast", "Lunch", "Dinner", "Dessert"], width=300)
-        self.cat_cmb.pack(pady=10)
-
-        ctk.CTkButton(self.add_win, text="Save to Vault", command=self.save_recipe).pack(pady=20)
-
+    def save_update(self, recipe_id):
+        updated_data = {
+            "title": self.title_ent.get(),
+            "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
+            "category": self.cat_cmb.get()
+        }
+        if self.db.update_recipe(recipe_id, updated_data):
+            messagebox.showinfo("Success", "Recipe Updated!")
+            self.add_win.destroy()
+            if hasattr(self, 'detail_win'): self.detail_win.destroy()
+            self.load_recipes()
+            
     def save_recipe(self):
         data = {
             "title": self.title_ent.get(),
