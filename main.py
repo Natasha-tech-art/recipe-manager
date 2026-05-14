@@ -34,7 +34,7 @@ class MainApplication(ctk.CTk):
             widget.destroy()
         self.show_dashboard()
         
-        def filter_recipes(self):
+    def filter_recipes(self):
         query = self.search_entry.get()
         if not query:
             self.load_recipes()
@@ -79,13 +79,69 @@ class MainApplication(ctk.CTk):
         ctk.CTkButton(self.sidebar, text="Refresh List", command=lambda: self.load_recipes()).pack(pady=10, padx=20)
         ctk.CTkButton(self.sidebar, text="Logout", fg_color="gray30", command=self.show_auth_page).pack(side="bottom", pady=20, padx=20)
 
-        # 2. Main Content (Recipe List)
+        # 2. Main Content
         self.recipe_list_frame = ctk.CTkFrame(self.container, corner_radius=15)
         self.recipe_list_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
         
+        # --- NEW SEARCH BAR ---
+        self.search_frame = ctk.CTkFrame(self.recipe_list_frame, fg_color="transparent")
+        self.search_frame.pack(fill="x", padx=10, pady=10)
+
+        self.search_entry = ctk.CTkEntry(self.search_frame, placeholder_text="Search title, cuisine, or category...", width=300)
+        self.search_entry.pack(side="left", padx=(0, 10), expand=True, fill="x")
+        # This makes it search automatically as you type!
+        self.search_entry.bind("<KeyRelease>", lambda e: self.filter_recipes())
+
         self.recipe_scroll = ctk.CTkScrollableFrame(self.recipe_list_frame, label_text="Your Recipe Vault")
         self.recipe_scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
+        # ... (Planner code remains the same) ...
+        self.load_recipes()
+
+    def filter_recipes(self):
+        query = self.search_entry.get()
+        if not query:
+            self.load_recipes()
+            return
+        
+        for widget in self.recipe_scroll.winfo_children():
+            widget.destroy()
+            
+        recipes = self.db.search_recipes(self.current_user['username'], query)
+        for res in recipes:
+            # We show the Cuisine in the button text now!
+            btn_text = f"{res['title']} | {res.get('cuisine', 'General')}"
+            btn = ctk.CTkButton(self.recipe_scroll, text=btn_text, 
+                                anchor="w", fg_color="transparent", border_width=1,
+                                command=lambda r=res: self.view_recipe_details(r))
+            btn.pack(fill="x", pady=2, padx=5)
+
+    def view_recipe_details(self, recipe):
+        self.detail_win = ctk.CTkToplevel(self)
+        self.detail_win.title(recipe['title'])
+        self.detail_win.geometry("500x600")
+        self.detail_win.attributes("-topmost", True)
+
+        ctk.CTkLabel(self.detail_win, text=recipe['title'], font=("Helvetica", 24, "bold")).pack(pady=10)
+        
+        # --- SHOW CUISINE ---
+        cuisine = recipe.get('cuisine', 'Not specified')
+        ctk.CTkLabel(self.detail_win, text=f"Cuisine: {cuisine}", font=("Helvetica", 14, "italic")).pack()
+
+        # Ingredients Section
+        ctk.CTkLabel(self.detail_win, text="Ingredients:", font=("Helvetica", 14, "bold")).pack(anchor="w", padx=20, pady=(10, 0))
+        ctk.CTkLabel(self.detail_win, text="\n".join(recipe['ingredients']), justify="left").pack(anchor="w", padx=40)
+
+        # --- SHOW INSTRUCTIONS ---
+        ctk.CTkLabel(self.detail_win, text="Instructions:", font=("Helvetica", 14, "bold")).pack(anchor="w", padx=20, pady=(10, 0))
+        
+        # We use a Textbox so the instructions can scroll if they are long
+        ins_box = ctk.CTkTextbox(self.detail_win, width=450, height=150, fg_color="transparent")
+        ins_box.insert("0.0", recipe.get('instructions', 'No instructions provided.'))
+        ins_box.configure(state="disabled") # Make it read-only
+        ins_box.pack(padx=20, pady=5)
+
+        # ... (Delete/Edit buttons remain the same) ...
         # 3. Right Panel (Meal Planner with Calendar)
         self.planner_frame = ctk.CTkFrame(self.container, width=300)
         self.planner_frame.pack(side="right", fill="y", padx=(0, 20), pady=20)
@@ -192,10 +248,10 @@ class MainApplication(ctk.CTk):
     def save_recipe(self):
         data = {
             "title": self.title_ent.get(),
-            "cuisine": self.cuisine_ent.get(),
-            "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
-            "instructions": self.ins_txt.get("0.0", "end").strip().split("\n"),
+            "cuisine": self.cuisine_ent.get(), # GET CUISINE
             "category": self.cat_cmb.get(),
+            "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
+            "instructions": self.ins_txt.get("0.0", "end").strip(), # GET INSTRUCTIONS
             "owner": self.current_user['username']
         }
         if self.db.add_recipe(data):
