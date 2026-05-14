@@ -27,12 +27,25 @@ class Database:
         user = self.users.find_one({"username": username, "password": hashed_pw})
         return user if user else None
 
+
     def add_recipe(self, recipe_data):
         try:
+            # Ensure new fields are present
             return self.recipes.insert_one(recipe_data)
         except Exception as e:
             print(f"DB Error: {e}")
             return None
+
+    def search_recipes(self, username, query):
+        # This searches for the query string in the title or category
+        return list(self.recipes.find({
+            "owner": username,
+            "$or": [
+                {"title": {"$regex": query, "$options": "i"}},
+                {"category": {"$regex": query, "$options": "i"}},
+                {"cuisine": {"$regex": query, "$options": "i"}}
+            ]
+        }))
 
     def get_user_recipes(self, username):
         return list(self.recipes.find({"owner": username}))
