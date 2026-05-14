@@ -33,6 +33,38 @@ class MainApplication(ctk.CTk):
         for widget in self.container.winfo_children():
             widget.destroy()
         self.show_dashboard()
+        
+        def filter_recipes(self):
+        query = self.search_entry.get()
+        if not query:
+            self.load_recipes()
+            return
+        
+        # Clear current list
+        for widget in self.recipe_scroll.winfo_children():
+            widget.destroy()
+            
+        # Get filtered results
+        recipes = self.db.search_recipes(self.current_user['username'], query)
+        for res in recipes:
+            btn = ctk.CTkButton(self.recipe_scroll, text=f"{res['title']} | {res.get('cuisine', 'General')}", 
+                                anchor="w", fg_color="transparent", border_width=1,
+                                command=lambda r=res: self.view_recipe_details(r))
+            btn.pack(fill="x", pady=2, padx=5)
+
+    def save_recipe(self):
+        data = {
+            "title": self.title_ent.get(),
+            "cuisine": self.cuisine_ent.get(),
+            "category": self.cat_cmb.get(),
+            "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
+            "instructions": self.ins_txt.get("0.0", "end").strip(),
+            "owner": self.current_user['username']
+        }
+        if self.db.add_recipe(data):
+            messagebox.showinfo("Success", "Recipe Saved!")
+            self.add_win.destroy()
+            self.load_recipes()
 
     # --- DASHBOARD LAYOUT ---
 
@@ -76,6 +108,16 @@ class MainApplication(ctk.CTk):
         ctk.CTkButton(self.planner_frame, text="Schedule Meal", command=self.assign_to_planner).pack(pady=10)
         
         self.load_recipes()
+        
+        # Search Frame
+        self.search_frame = ctk.CTkFrame(self.recipe_list_frame, fg_color="transparent")
+        self.search_frame.pack(fill="x", padx=10, pady=10)
+
+        self.search_entry = ctk.CTkEntry(self.search_frame, placeholder_text="Search by title, cuisine, or category...", width=300)
+        self.search_entry.pack(side="left", padx=(0, 10), expand=True, fill="x")
+        
+        # Bind the search to update as you type
+        self.search_entry.bind("<KeyRelease>", lambda e: self.filter_recipes())
 
     # --- CALENDAR & PLANNER LOGIC (FIXED INDENTATION) ---
 
