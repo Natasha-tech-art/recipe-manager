@@ -3,6 +3,7 @@ from tkinter import messagebox
 from database import Database
 from bson.objectid import ObjectId
 from tkcalendar import Calendar  # Make sure this is installed: pip install tkcalendar
+from planner import MealPlannerFrame
 
 # Global UI Settings
 ctk.set_appearance_mode("dark")
@@ -65,6 +66,13 @@ class MainApplication(ctk.CTk):
             messagebox.showinfo("Success", "Recipe Saved!")
             self.add_win.destroy()
             self.load_recipes()
+            
+    def show_planner(self):
+        for widget in self.container.winfo_children():
+            widget.destroy()
+        
+        self.planner_view = MealPlannerFrame(self.container, self)
+        self.planner_view.pack(fill="both", expand=True, padx=20, pady=20)
 
     # --- DASHBOARD LAYOUT ---
 
@@ -78,7 +86,8 @@ class MainApplication(ctk.CTk):
         ctk.CTkButton(self.sidebar, text="+ Add Recipe", command=lambda: self.open_add_recipe()).pack(pady=10, padx=20)
         ctk.CTkButton(self.sidebar, text="Refresh List", command=lambda: self.load_recipes()).pack(pady=10, padx=20)
         ctk.CTkButton(self.sidebar, text="Logout", fg_color="gray30", command=self.show_auth_page).pack(side="bottom", pady=20, padx=20)
-
+        self.plan_nav_btn = ctk.CTkButton(self.sidebar, text="📅 Meal Planner", command=self.show_planner)
+        self.plan_nav_btn.pack(pady=10, padx=20)
         # 2. Main Content
         self.recipe_list_frame = ctk.CTkFrame(self.container, corner_radius=15)
         self.recipe_list_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)

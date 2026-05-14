@@ -62,6 +62,16 @@ class Database:
         except Exception as e:
             print(f"Planner Error: {e}")
             return None
+        
+    def save_meal_plan(self, plan_data):
+        return self.meal_plans.update_one(
+            {"date": plan_data["date"], "owner": plan_data["owner"]},
+            {"$set": plan_data},
+            upsert=True
+        )
+
+    def get_meal_plan(self, date, username):
+        return self.meal_plans.find_one({"date": date, "owner": username})
 
     def get_meal_plan(self, date, username):
         return self.meal_plans.find_one({"date": date, "owner": username})
