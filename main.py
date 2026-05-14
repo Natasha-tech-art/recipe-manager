@@ -117,26 +117,42 @@ class MainApplication(ctk.CTk):
     def open_add_recipe(self):
         self.add_win = ctk.CTkToplevel(self)
         self.add_win.title("Add New Recipe")
-        self.add_win.geometry("450x550")
+        self.add_win.geometry("500x750") # Made it taller for new fields
         self.add_win.attributes("-topmost", True)
 
-        ctk.CTkLabel(self.add_win, text="Recipe Title").pack(pady=(20,0))
-        self.title_ent = ctk.CTkEntry(self.add_win, width=300)
-        self.title_ent.pack(pady=10)
+        # Title
+        ctk.CTkLabel(self.add_win, text="Recipe Title").pack(pady=(10,0))
+        self.title_ent = ctk.CTkEntry(self.add_win, width=350)
+        self.title_ent.pack(pady=5)
 
+        # Cuisine Type
+        ctk.CTkLabel(self.add_win, text="Cuisine (e.g. Italian, Mexican)").pack()
+        self.cuisine_ent = ctk.CTkEntry(self.add_win, width=350)
+        self.cuisine_ent.pack(pady=5)
+
+        # Category
+        ctk.CTkLabel(self.add_win, text="Category").pack()
+        self.cat_cmb = ctk.CTkComboBox(self.add_win, values=["Breakfast", "Lunch", "Dinner", "Dessert"], width=350)
+        self.cat_cmb.pack(pady=5)
+
+        # Ingredients
         ctk.CTkLabel(self.add_win, text="Ingredients (one per line)").pack()
-        self.ing_txt = ctk.CTkTextbox(self.add_win, width=300, height=100)
-        self.ing_txt.pack(pady=10)
+        self.ing_txt = ctk.CTkTextbox(self.add_win, width=350, height=80)
+        self.ing_txt.pack(pady=5)
 
-        self.cat_cmb = ctk.CTkComboBox(self.add_win, values=["Breakfast", "Lunch", "Dinner", "Dessert"], width=300)
-        self.cat_cmb.pack(pady=10)
+        # Instructions (NEW)
+        ctk.CTkLabel(self.add_win, text="Cooking Instructions").pack()
+        self.ins_txt = ctk.CTkTextbox(self.add_win, width=350, height=120)
+        self.ins_txt.pack(pady=5)
 
         ctk.CTkButton(self.add_win, text="Save to Vault", command=self.save_recipe).pack(pady=20)
-
+   
     def save_recipe(self):
         data = {
             "title": self.title_ent.get(),
+            "cuisine": self.cuisine_ent.get(),
             "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
+            "instructions": self.ins_txt.get("0.0", "end").strip().split("\n"),
             "category": self.cat_cmb.get(),
             "owner": self.current_user['username']
         }
