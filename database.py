@@ -5,10 +5,10 @@ from bson.objectid import ObjectId
 
 class Database:
     def __init__(self):
-        # Your live MongoDB Atlas connection string
+        # Fire-walled network bypass connection string
         self.uri = "mongodb+srv://natashabolyn4_db_user:xuOfmtUe3zgxk4AD@recipe-manager.gjr3ep.mongodb.net/?retryWrites=true&w=majority"
         
-        # connect=False prevents the app from crashing on startup if your network drops the DNS query
+        # Connect=False keeps the app stable while setting up the connection pipe
         self.client = MongoClient(self.uri, server_api=ServerApi('1'), connect=False, serverSelectionTimeoutMS=5000)
         self.db = self.client['RecipeManagerDB']
         
