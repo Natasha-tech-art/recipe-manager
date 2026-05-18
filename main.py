@@ -1,21 +1,69 @@
 import customtkinter as ctk
 from tkinter import messagebox
+
+# Import your database class from database.py
 from database import Database
+# Import your planner frame from planner.py
 from planner import MealPlannerFrame
 
+# Set up CustomTkinter appearance settings
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+# ==========================================
+# AUTHENTICATION FRAME
+# ==========================================
+class AuthFrame(ctk.CTkFrame):
+    def __init__(self, parent, controller):
+        super().__init__(parent, corner_radius=15, fg_color=("gray90", "gray16"))
+        self.controller = controller
+        
+        ctk.CTkLabel(self, text="🍳 SmartMeal Pro", font=("Helvetica", 24, "bold"), text_color="#4CAF50").pack(pady=20, padx=40)
+        
+        self.u_ent = ctk.CTkEntry(self, placeholder_text="Username", width=250)
+        self.u_ent.pack(pady=10)
+        
+        self.p_ent = ctk.CTkEntry(self, placeholder_text="Password", show="*", width=250)
+        self.p_ent.pack(pady=10)
+
+        ctk.CTkButton(self, text="Login", command=self.login, width=250).pack(pady=(20, 10))
+        ctk.CTkButton(self, text="Create Account", fg_color="transparent", border_width=2, command=self.register, width=250).pack(pady=(0, 20))
+
+    def login(self):
+        try:
+            user = self.controller.db.login_user(self.u_ent.get(), self.p_ent.get())
+            if user: 
+                self.controller.login_success(user)
+            else: 
+                messagebox.showerror("Error", "Login Details Incorrect.")
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Authentication failed:\n{e}")
+
+    def register(self):
+        try:
+            success, msg = self.controller.db.create_user(self.u_ent.get(), self.p_ent.get())
+            if success:
+                messagebox.showinfo("Status", msg)
+            else:
+                messagebox.showerror("Error", msg)
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Could not complete registration:\n{e}")
+
+
+# ==========================================
+# MAIN APPLICATION ENGINE
+# ==========================================
 class MainApplication(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("SmartMeal Pro - Recipe Manager")
-        self.geometry("1100x700")
+        self.geometry("1150x720")
         
+        # Initialize database engine from database.py
         self.db = Database()
         self.current_user = None
 
-        # Main Layout Container Window
+        # Absolute Root Frame Viewport Manager Window
         self.container = ctk.CTkFrame(self)
         self.container.pack(fill="both", expand=True)
 
@@ -35,39 +83,37 @@ class MainApplication(ctk.CTk):
         for widget in self.container.winfo_children():
             widget.destroy()
 
-        # 1. Left Sidebar Panels
+        # Side Controller Panel
         self.sidebar = ctk.CTkFrame(self.container, width=220, corner_radius=0)
         self.sidebar.pack(side="left", fill="y")
         
-        ctk.CTkLabel(self.sidebar, text="SmartMeal Pro", font=("Helvetica", 20, "bold")).pack(pady=20)
+        ctk.CTkLabel(self.sidebar, text="SmartMeal Pro", font=("Helvetica", 18, "bold"), text_color="#4CAF50").pack(pady=20, padx=10)
         
-        ctk.CTkButton(self.sidebar, text="+ Add Recipe", command=self.open_add_recipe).pack(pady=10, padx=20)
+        ctk.CTkButton(self.sidebar, text="+ Add New Recipe", command=self.open_add_recipe).pack(pady=10, padx=20)
         ctk.CTkButton(self.sidebar, text="📅 Meal Planner", command=self.show_planner).pack(pady=10, padx=20)
-        ctk.CTkButton(self.sidebar, text="Refresh Vault", command=self.load_recipes).pack(pady=10, padx=20)
+        ctk.CTkButton(self.sidebar, text="Sync Hub", command=self.load_recipes).pack(pady=10, padx=20)
         ctk.CTkButton(self.sidebar, text="Logout", fg_color="gray30", command=self.show_auth_page).pack(side="bottom", pady=20, padx=20)
 
-        # 2. Right Side Content Panel
+        # Center View Workspace
         self.recipe_list_frame = ctk.CTkFrame(self.container, corner_radius=15)
         self.recipe_list_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
         
+        # Live Filter Bar
         self.search_frame = ctk.CTkFrame(self.recipe_list_frame, fg_color="transparent")
         self.search_frame.pack(fill="x", padx=10, pady=10)
 
-        self.search_entry = ctk.CTkEntry(self.search_frame, placeholder_text="Search title, cuisine, or category...", width=300)
+        self.search_entry = ctk.CTkEntry(self.search_frame, placeholder_text="🔍 Live search title, cuisine, or category...", width=300)
         self.search_entry.pack(side="left", padx=(0, 10), expand=True, fill="x")
         self.search_entry.bind("<KeyRelease>", lambda e: self.filter_recipes())
 
-        self.recipe_scroll = ctk.CTkScrollableFrame(self.recipe_list_frame, label_text="Your Recipe Vault")
+        self.recipe_scroll = ctk.CTkScrollableFrame(self.recipe_list_frame, label_text="Your Personal Digital Cookbook Vault")
         self.recipe_scroll.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.load_recipes()
 
     def show_planner(self):
-        # Clear main application container components completely
         for widget in self.container.winfo_children():
             widget.destroy()
-        
-        # Build and display the calendar from planner.py
         self.planner_view = MealPlannerFrame(self.container, self)
         self.planner_view.pack(fill="both", expand=True, padx=20, pady=20)
 
@@ -78,7 +124,7 @@ class MainApplication(ctk.CTk):
             recipes = self.db.get_user_recipes(self.current_user['username'])
             self.populate_scroll_list(recipes)
         except Exception as e:
-            print(f"Error loading recipes: {e}")
+            print(f"Error loading dashboard scroll profiles: {e}")
 
     def filter_recipes(self):
         query = self.search_entry.get().strip()
@@ -91,163 +137,205 @@ class MainApplication(ctk.CTk):
                 widget.destroy()
             self.populate_scroll_list(recipes)
         except Exception as e:
-            print(f"Filter error: {e}")
+            print(f"Filter tracking error: {e}")
 
     def populate_scroll_list(self, recipes):
         for res in recipes:
             cuisine_tag = res.get('cuisine', 'General')
-            btn_text = f"{res['title']} ({cuisine_tag}) — {res['category']}"
+            rating = res.get('rating', '⭐ Unrated')
+            btn_text = f"{res['title']} ({cuisine_tag}) — Category: {res['category']}  |  Score: {rating}"
             btn = ctk.CTkButton(self.recipe_scroll, text=btn_text, anchor="w", 
                                 fg_color="transparent", border_width=1,
                                 command=lambda r=res: self.view_recipe_details(r))
-            btn.pack(fill="x", pady=2, padx=5)
+            btn.pack(fill="x", pady=4, padx=5)
 
     def open_add_recipe(self):
         self.add_win = ctk.CTkToplevel(self)
-        self.add_win.title("Add New Recipe")
-        self.add_win.geometry("500x720")
+        self.add_win.title("Add New Recipe Profile")
+        self.add_win.geometry("520x760")
         self.add_win.attributes("-topmost", True)
 
-        ctk.CTkLabel(self.add_win, text="Recipe Title", font=("Helvetica", 12, "bold")).pack(pady=(15,2))
+        ctk.CTkLabel(self.add_win, text="Recipe Title", font=("Helvetica", 12, "bold")).pack(pady=(12,2))
         self.title_ent = ctk.CTkEntry(self.add_win, width=380)
         self.title_ent.pack()
 
-        ctk.CTkLabel(self.add_win, text="Cuisine Type (e.g., Italian, Indian)", font=("Helvetica", 12, "bold")).pack(pady=(10,2))
+        ctk.CTkLabel(self.add_win, text="Cuisine Classification (e.g., Italian, Mexican)", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
         self.cuisine_ent = ctk.CTkEntry(self.add_win, width=380)
         self.cuisine_ent.pack()
 
-        ctk.CTkLabel(self.add_win, text="Category", font=("Helvetica", 12, "bold")).pack(pady=(10,2))
-        self.cat_cmb = ctk.CTkComboBox(self.add_win, values=["Breakfast", "Lunch", "Dinner", "Dessert"], width=380)
+        ctk.CTkLabel(self.add_win, text="Meal Category Slot", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
+        self.cat_cmb = ctk.CTkComboBox(self.add_win, values=["Breakfast", "Lunch", "Dinner", "Dessert", "Snack"], width=380)
         self.cat_cmb.pack()
 
-        ctk.CTkLabel(self.add_win, text="Ingredients (One item per line)", font=("Helvetica", 12, "bold")).pack(pady=(10,2))
-        self.ing_txt = ctk.CTkTextbox(self.add_win, width=380, height=100)
+        ctk.CTkLabel(self.add_win, text="Recipe Score Rating", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
+        self.rat_cmb = ctk.CTkComboBox(self.add_win, values=["⭐ Excellent (5/5)", "⭐⭐⭐⭐ (4/5)", "⭐⭐⭐ (3/5)", "⭐⭐ (2/5)", "⭐ (1/5)"], width=380)
+        self.rat_cmb.pack()
+
+        ctk.CTkLabel(self.add_win, text="Ingredients (One item per line)", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
+        self.ing_txt = ctk.CTkTextbox(self.add_win, width=380, height=90)
         self.ing_txt.pack()
 
-        ctk.CTkLabel(self.add_win, text="Preparation Instructions", font=("Helvetica", 12, "bold")).pack(pady=(10,2))
-        self.ins_txt = ctk.CTkTextbox(self.add_win, width=380, height=140)
+        ctk.CTkLabel(self.add_win, text="Cooking & Preparation Instructions", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
+        self.ins_txt = ctk.CTkTextbox(self.add_win, width=380, height=120)
         self.ins_txt.pack()
 
-        self.action_btn = ctk.CTkButton(self.add_win, text="Save to Vault", command=self.save_recipe, width=200)
-        self.action_btn.pack(pady=25)
+        self.action_btn = ctk.CTkButton(self.add_win, text="Commit to Vault", command=self.save_recipe, width=200, fg_color="#4CAF50")
+        self.action_btn.pack(pady=20)
 
     def save_recipe(self):
         if not self.title_ent.get().strip():
-            messagebox.showwarning("Missing Data", "Recipe Title is required!")
+            messagebox.showwarning("Missing Requirements", "A recipe title layout is required!")
             return
             
         data = {
             "title": self.title_ent.get().strip(),
             "cuisine": self.cuisine_ent.get().strip() if self.cuisine_ent.get().strip() else "General",
             "category": self.cat_cmb.get(),
+            "rating": self.rat_cmb.get(),
             "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
             "instructions": self.ins_txt.get("0.0", "end").strip(),
             "owner": self.current_user['username']
         }
         try:
             self.db.add_recipe(data)
-            messagebox.showinfo("Success", "Recipe securely saved in your Online Cloud Vault!")
+            messagebox.showinfo("Success", "Recipe safely cataloged!")
             self.add_win.destroy()
             self.load_recipes()
         except Exception as e:
-            messagebox.showerror("Cloud Write Error", f"Failed saving data upstream:\n{e}")
+            messagebox.showerror("Error", f"Failed saving data profile: {e}")
 
     def view_recipe_details(self, recipe):
+        if hasattr(self, 'detail_win') and self.detail_win.winfo_exists():
+            self.detail_win.destroy()
+
         self.detail_win = ctk.CTkToplevel(self)
-        self.detail_win.title(recipe['title'])
-        self.detail_win.geometry("520x620")
+        self.detail_win.title(f"Recipe: {recipe['title']}")
+        self.detail_win.geometry("580x680")
         self.detail_win.attributes("-topmost", True)
+        self.detail_win.focus()
 
-        ctk.CTkLabel(self.detail_win, text=recipe['title'], font=("Helvetica", 24, "bold")).pack(pady=(15,2))
-        ctk.CTkLabel(self.detail_win, text=f"Cuisine: {recipe.get('cuisine', 'General')} | Category: {recipe['category']}", 
-                     font=("Helvetica", 13, "italic", "gray")).pack(pady=(0,15))
+        # --- SCROLLABLE CONTAINER FRAME ---
+        scroll_content = ctk.CTkScrollableFrame(self.detail_win, fg_color="transparent")
+        scroll_content.pack(fill="both", expand=True, padx=15, pady=(15, 80))
 
-        ctk.CTkLabel(self.detail_win, text="Ingredients List:", font=("Helvetica", 14, "bold")).pack(anchor="w", padx=25)
-        ings = "\n".join([f"• {i}" for i in recipe['ingredients'] if i.strip()])
-        ctk.CTkLabel(self.detail_win, text=ings, justify="left", font=("Helvetica", 13)).pack(anchor="w", padx=40, pady=5)
+        # Title
+        ctk.CTkLabel(scroll_content, text=recipe['title'], font=("Helvetica", 24, "bold"), text_color="#4CAF50").pack(pady=(10, 5), anchor="w")
+        
+        # Subheaders
+        meta_text = f"Cuisine: {recipe.get('cuisine', 'General')}  |  Type: {recipe['category']}  |  {recipe.get('rating', '⭐ Unrated')}"
+        ctk.CTkLabel(scroll_content, text=meta_text, font=("Helvetica", 12, "italic"), text_color="gray").pack(pady=(0, 20), anchor="w")
 
-        ctk.CTkLabel(self.detail_win, text="Cooking Instructions:", font=("Helvetica", 14, "bold")).pack(anchor="w", padx=25, pady=(15,2))
-        ins_box = ctk.CTkTextbox(self.detail_win, width=460, height=180)
-        ins_box.insert("0.0", recipe.get('instructions', 'No specific preparation rules provided.'))
+        # Ingredients Label
+        ctk.CTkLabel(scroll_content, text="📋 Required Ingredients Checklist:", font=("Helvetica", 14, "bold"), text_color="#FFF").pack(anchor="w", pady=(10, 5))
+        
+        ingredients_list = recipe.get('ingredients', [])
+        if isinstance(ingredients_list, list):
+            ings = "\n".join([f"  •  {i.strip()}" for i in ingredients_list if i.strip()])
+        else:
+            ings = str(ingredients_list)
+            
+        if not ings.strip():
+            ings = "  • No ingredients listed profile."
+
+        # Ingredients Box
+        ing_display = ctk.CTkTextbox(scroll_content, width=500, height=120, font=("Helvetica", 13), fg_color=("gray85", "gray22"))
+        ing_display.pack(fill="x", pady=5, anchor="w")
+        ing_display.insert("0.0", ings)
+        ing_display.configure(state="disabled")
+
+        # Instructions Label
+        ctk.CTkLabel(scroll_content, text="🍳 Preparation Guide Instructions:", font=("Helvetica", 14, "bold"), text_color="#FFF").pack(anchor="w", pady=(20, 5))
+        
+        # Instructions Box
+        ins_box = ctk.CTkTextbox(scroll_content, width=500, height=180, font=("Helvetica", 13), fg_color=("gray85", "gray22"))
+        ins_box.pack(fill="x", pady=5, anchor="w")
+        ins_box.insert("0.0", recipe.get('instructions', 'No directions listed.'))
         ins_box.configure(state="disabled")
-        ins_box.pack(padx=25, pady=5)
 
-        btn_frame = ctk.CTkFrame(self.detail_win, fg_color="transparent")
-        btn_frame.pack(side="bottom", pady=20)
+        # --- PINNED BOTTOM ACTION BUTTONS BAR ---
+        btn_frame = ctk.CTkFrame(self.detail_win, fg_color=("gray95", "gray14"), height=70, corner_radius=0)
+        btn_frame.place(relx=0.0, rely=1.0, relwidth=1.0, anchor="sw")
 
-        ctk.CTkButton(btn_frame, text="Delete Recipe", fg_color="#FF4444", hover_color="#CC0000",
-                      command=lambda: self.confirm_delete(recipe)).pack(side="left", padx=10)
-        ctk.CTkButton(btn_frame, text="Edit Details", command=lambda: self.open_edit_recipe(recipe)).pack(side="left", padx=10)
+        ctk.CTkButton(btn_frame, text="🗑️ Delete Entry", fg_color="#FF4444", hover_color="#CC0000", font=("Helvetica", 13, "bold"),
+                      command=lambda: self.confirm_delete(recipe)).pack(side="left", padx=25, pady=20, expand=True, fill="x")
+        
+        ctk.CTkButton(btn_frame, text="✏️ Edit Details", fg_color="#FF9800", hover_color="#E65100", font=("Helvetica", 13, "bold"), text_color="white",
+                      command=lambda: self.open_edit_recipe(recipe)).pack(side="right", padx=25, pady=20, expand=True, fill="x")
 
     def confirm_delete(self, recipe):
-        if messagebox.askyesno("Confirm Deletion", f"Permanently remove {recipe['title']}?"):
+        if messagebox.askyesno("Confirm Drop", f"Delete {recipe['title']} permanently from index?"):
             try:
                 self.db.delete_recipe(recipe['_id'])
+                messagebox.showinfo("Success", "Recipe permanently removed from your vault.")
                 self.detail_win.destroy()
                 self.load_recipes()
             except Exception as e:
-                messagebox.showerror("Delete Error", f"Could not perform request:\n{e}")
+                messagebox.showerror("Error", f"Could not clear profile reference: {e}")
 
     def open_edit_recipe(self, recipe):
-        self.open_add_recipe()
-        self.add_win.title(f"Editing: {recipe['title']}")
+        self.detail_win.destroy()
         
-        self.title_ent.insert(0, recipe['title'])
-        self.cuisine_ent.insert(0, recipe.get('cuisine', 'General'))
-        self.cat_cmb.set(recipe['category'])
-        self.ing_txt.insert("0.0", "\n".join(recipe['ingredients']))
-        self.ins_txt.insert("0.0", recipe.get('instructions', ''))
-        
-        self.action_btn.configure(text="Update Details", command=lambda: self.save_update(recipe['_id']))
+        self.edit_win = ctk.CTkToplevel(self)
+        self.edit_win.title(f"Editing: {recipe['title']}")
+        self.edit_win.geometry("520x760")
+        self.edit_win.attributes("-topmost", True)
+
+        ctk.CTkLabel(self.edit_win, text="Modify Recipe Title", font=("Helvetica", 12, "bold")).pack(pady=(12,2))
+        self.edit_title_ent = ctk.CTkEntry(self.edit_win, width=380)
+        self.edit_title_ent.pack()
+        self.edit_title_ent.insert(0, recipe['title'])
+
+        ctk.CTkLabel(self.edit_win, text="Cuisine Classification", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
+        self.edit_cuisine_ent = ctk.CTkEntry(self.edit_win, width=380)
+        self.edit_cuisine_ent.pack()
+        self.edit_cuisine_ent.insert(0, recipe.get('cuisine', 'General'))
+
+        ctk.CTkLabel(self.edit_win, text="Meal Category Slot", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
+        self.edit_cat_cmb = ctk.CTkComboBox(self.edit_win, values=["Breakfast", "Lunch", "Dinner", "Dessert", "Snack"], width=380)
+        self.edit_cat_cmb.pack()
+        self.edit_cat_cmb.set(recipe['category'])
+
+        ctk.CTkLabel(self.edit_win, text="Recipe Score Rating", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
+        self.edit_rat_cmb = ctk.CTkComboBox(self.edit_win, values=["⭐ Excellent (5/5)", "⭐⭐⭐⭐ (4/5)", "⭐⭐⭐ (3/5)", "⭐⭐ (2/5)", "⭐ (1/5)"], width=380)
+        self.edit_rat_cmb.pack()
+        self.edit_rat_cmb.set(recipe.get('rating', "⭐⭐⭐⭐⭐ Excellent (5/5)"))
+
+        ctk.CTkLabel(self.edit_win, text="Ingredients (One item per line)", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
+        self.edit_ing_txt = ctk.CTkTextbox(self.edit_win, width=380, height=90)
+        self.edit_ing_txt.pack()
+        self.edit_ing_txt.insert("0.0", "\n".join(recipe['ingredients']))
+
+        ctk.CTkLabel(self.edit_win, text="Cooking & Preparation Instructions", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
+        self.edit_ins_txt = ctk.CTkTextbox(self.edit_win, width=380, height=120)
+        self.edit_ins_txt.pack()
+        self.edit_ins_txt.insert("0.0", recipe.get('instructions', ''))
+
+        ctk.CTkButton(self.edit_win, text="Save Changes", command=lambda: self.save_update(recipe['_id']), width=200, fg_color="#FF9800").pack(pady=20)
 
     def save_update(self, recipe_id):
+        if not self.edit_title_ent.get().strip():
+            messagebox.showwarning("Missing Field", "Title cannot be blank!")
+            return
+
         updated_data = {
-            "title": self.title_ent.get().strip(),
-            "cuisine": self.cuisine_ent.get().strip(),
-            "category": self.cat_cmb.get(),
-            "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
-            "instructions": self.ins_txt.get("0.0", "end").strip()
+            "title": self.edit_title_ent.get().strip(),
+            "cuisine": self.edit_cuisine_ent.get().strip() if self.edit_cuisine_ent.get().strip() else "General",
+            "category": self.edit_cat_cmb.get(),
+            "rating": self.edit_rat_cmb.get(),
+            "ingredients": self.edit_ing_txt.get("0.0", "end").strip().split("\n"),
+            "instructions": self.edit_ins_txt.get("0.0", "end").strip()
         }
         try:
             self.db.update_recipe(recipe_id, updated_data)
-            messagebox.showinfo("Success", "Recipe configurations changed successfully!")
-            self.add_win.destroy()
-            if hasattr(self, 'detail_win'): self.detail_win.destroy()
+            messagebox.showinfo("Success", "Recipe changes saved successfully!")
+            self.edit_win.destroy()
             self.load_recipes()
         except Exception as e:
-            messagebox.showerror("Update Error", f"Could not push modifications online:\n{e}")
+            messagebox.showerror("Update Error", f"Could not push modifications:\n{e}")
 
-class AuthFrame(ctk.CTkFrame):
-    def __init__(self, parent, controller):
-        super().__init__(parent, corner_radius=15, fg_color=("gray90", "gray16"))
-        self.controller = controller
-        
-        ctk.CTkLabel(self, text="SmartMeal Pro", font=("Helvetica", 24, "bold")).pack(pady=20, padx=40)
-        self.u_ent = ctk.CTkEntry(self, placeholder_text="Username", width=250)
-        self.u_ent.pack(pady=10)
-        self.p_ent = ctk.CTkEntry(self, placeholder_text="Password", show="*", width=250)
-        self.p_ent.pack(pady=10)
-
-        ctk.CTkButton(self, text="Login", command=self.login, width=250).pack(pady=(20, 10))
-        ctk.CTkButton(self, text="Create Account", fg_color="transparent", border_width=2, command=self.register, width=250).pack(pady=(0, 20))
-
-    def login(self):
-        try:
-            user = self.controller.db.login_user(self.u_ent.get(), self.p_ent.get())
-            if user: 
-                self.controller.login_success(user)
-            else: 
-                messagebox.showerror("Error", "Login Details Incorrect.")
-        except Exception as e:
-            messagebox.showerror("Database Error", f"Could not connect to MongoDB Atlas cluster cloud.\nError:\n{e}")
-
-    def register(self):
-        try:
-            success, msg = self.controller.db.create_user(self.u_ent.get(), self.p_ent.get())
-            messagebox.showinfo("Status", msg) if success else messagebox.showerror("Error", msg)
-        except Exception as e:
-            messagebox.showerror("Database Error", f"Could not write configuration online.\nError:\n{e}")
-
+# ==========================================
+# APPLICATION START EVENT LOOP
+# ==========================================
 if __name__ == "__main__":
     app = MainApplication()
     app.mainloop()

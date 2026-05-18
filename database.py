@@ -6,7 +6,7 @@ from bson.objectid import ObjectId
 class Database:
     def __init__(self):
         # Fire-walled network bypass connection string
-        self.uri = "mongodb+srv://natashabolyn4_db_user:xuOfmtUe3zgxk4AD@recipe-manager.gjr3ep.mongodb.net/?retryWrites=true&w=majority"
+        self.uri = "mongodb+srv://natashabolyn4_db_user:xuOfmtUe3zgxk4AD@recipe-manager.gjr3epx.mongodb.net/?appName=recipe-manager"
         
         # Connect=False keeps the app stable while setting up the connection pipe
         self.client = MongoClient(self.uri, server_api=ServerApi('1'), connect=False, serverSelectionTimeoutMS=5000)
