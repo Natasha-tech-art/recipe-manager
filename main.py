@@ -3,7 +3,6 @@ from tkinter import messagebox
 from database import Database
 from planner import MealPlannerFrame
 
-# Global UI Theme Settings
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -16,7 +15,7 @@ class MainApplication(ctk.CTk):
         self.db = Database()
         self.current_user = None
 
-        # Base Frame Controller Window
+        # Absolute Root Frame Viewport Manager Window
         self.container = ctk.CTkFrame(self)
         self.container.pack(fill="both", expand=True)
 
@@ -36,7 +35,7 @@ class MainApplication(ctk.CTk):
         for widget in self.container.winfo_children():
             widget.destroy()
 
-        # 1. Left Sidebar Navigation Panel
+        # 1. Sidebar Frame
         self.sidebar = ctk.CTkFrame(self.container, width=220, corner_radius=0)
         self.sidebar.pack(side="left", fill="y")
         
@@ -47,11 +46,10 @@ class MainApplication(ctk.CTk):
         ctk.CTkButton(self.sidebar, text="Refresh Vault", command=lambda: self.load_recipes()).pack(pady=10, padx=20)
         ctk.CTkButton(self.sidebar, text="Logout", fg_color="gray30", command=self.show_auth_page).pack(side="bottom", pady=20, padx=20)
 
-        # 2. Middle Content Panel (Recipe List View)
+        # 2. Main content view block
         self.recipe_list_frame = ctk.CTkFrame(self.container, corner_radius=15)
         self.recipe_list_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
         
-        # Search Sub-frame Area
         self.search_frame = ctk.CTkFrame(self.recipe_list_frame, fg_color="transparent")
         self.search_frame.pack(fill="x", padx=10, pady=10)
 
@@ -59,37 +57,41 @@ class MainApplication(ctk.CTk):
         self.search_entry.pack(side="left", padx=(0, 10), expand=True, fill="x")
         self.search_entry.bind("<KeyRelease>", lambda e: self.filter_recipes())
 
-        # Scroll Box Area
         self.recipe_scroll = ctk.CTkScrollableFrame(self.recipe_list_frame, label_text="Your Recipe Vault")
         self.recipe_scroll.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.load_recipes()
 
     def show_planner(self):
-        # Clears middle components to mount the separate panel view cleanly
+        # Destroy all active panels to prevent layout frame stacking overlaps
         for widget in self.container.winfo_children():
             widget.destroy()
         
+        # Structural Mount injection framework fix
         self.planner_view = MealPlannerFrame(self.container, self)
         self.planner_view.pack(fill="both", expand=True, padx=20, pady=20)
-
-    # --- COMPLETE RECIPE CRUD & SEARCH LOGIC ---
 
     def load_recipes(self):
         for widget in self.recipe_scroll.winfo_children():
             widget.destroy()
-        recipes = self.db.get_user_recipes(self.current_user['username'])
-        self.populate_scroll_list(recipes)
+        try:
+            recipes = self.db.get_user_recipes(self.current_user['username'])
+            self.populate_scroll_list(recipes)
+        except Exception as e:
+            print(f"Error loading recipes: {e}")
 
     def filter_recipes(self):
         query = self.search_entry.get().strip()
         if not query:
             self.load_recipes()
             return
-        recipes = self.db.search_recipes(self.current_user['username'], query)
-        for widget in self.recipe_scroll.winfo_children():
-            widget.destroy()
-        self.populate_scroll_list(recipes)
+        try:
+            recipes = self.db.search_recipes(self.current_user['username'], query)
+            for widget in self.recipe_scroll.winfo_children():
+                widget.destroy()
+            self.populate_scroll_list(recipes)
+        except Exception as e:
+            print(f"Filter error: {e}")
 
     def populate_scroll_list(self, recipes):
         for res in recipes:
@@ -142,10 +144,13 @@ class MainApplication(ctk.CTk):
             "instructions": self.ins_txt.get("0.0", "end").strip(),
             "owner": self.current_user['username']
         }
-        if self.db.add_recipe(data):
-            messagebox.showinfo("Success", "Recipe securely saved in your Cloud Vault!")
+        try:
+            self.db.add_recipe(data)
+            messagebox.showinfo("Success", "Recipe securely saved in your Online Cloud Vault!")
             self.add_win.destroy()
             self.load_recipes()
+        except Exception as e:
+            messagebox.showerror("Cloud Write Error", f"Failed saving data upstream:\n{e}")
 
     def view_recipe_details(self, recipe):
         self.detail_win = ctk.CTkToplevel(self)
@@ -157,19 +162,16 @@ class MainApplication(ctk.CTk):
         ctk.CTkLabel(self.detail_win, text=f"Cuisine: {recipe.get('cuisine', 'General')} | Category: {recipe['category']}", 
                      font=("Helvetica", 13, "italic", "gray")).pack(pady=(0,15))
 
-        # Ingredients Section display
         ctk.CTkLabel(self.detail_win, text="Ingredients List:", font=("Helvetica", 14, "bold")).pack(anchor="w", padx=25)
         ings = "\n".join([f"• {i}" for i in recipe['ingredients'] if i.strip()])
         ctk.CTkLabel(self.detail_win, text=ings, justify="left", font=("Helvetica", 13)).pack(anchor="w", padx=40, pady=5)
 
-        # Instructions Section display 
         ctk.CTkLabel(self.detail_win, text="Cooking Instructions:", font=("Helvetica", 14, "bold")).pack(anchor="w", padx=25, pady=(15,2))
         ins_box = ctk.CTkTextbox(self.detail_win, width=460, height=180)
         ins_box.insert("0.0", recipe.get('instructions', 'No specific preparation rules provided.'))
         ins_box.configure(state="disabled")
         ins_box.pack(padx=25, pady=5)
 
-        # Control management interaction frames
         btn_frame = ctk.CTkFrame(self.detail_win, fg_color="transparent")
         btn_frame.pack(side="bottom", pady=20)
 
@@ -179,9 +181,12 @@ class MainApplication(ctk.CTk):
 
     def confirm_delete(self, recipe):
         if messagebox.askyesno("Confirm Deletion", f"Permanently remove {recipe['title']}?"):
-            self.db.delete_recipe(recipe['_id'])
-            self.detail_win.destroy()
-            self.load_recipes()
+            try:
+                self.db.delete_recipe(recipe['_id'])
+                self.detail_win.destroy()
+                self.load_recipes()
+            except Exception as e:
+                messagebox.showerror("Delete Error", f"Could not perform request:\n{e}")
 
     def open_edit_recipe(self, recipe):
         self.open_add_recipe()
@@ -203,13 +208,14 @@ class MainApplication(ctk.CTk):
             "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
             "instructions": self.ins_txt.get("0.0", "end").strip()
         }
-        if self.db.update_recipe(recipe_id, updated_data):
+        try:
+            self.db.update_recipe(recipe_id, updated_data)
             messagebox.showinfo("Success", "Recipe configurations changed successfully!")
             self.add_win.destroy()
             if hasattr(self, 'detail_win'): self.detail_win.destroy()
             self.load_recipes()
-
-# --- SECURITY INTERACTION ELEMENT ---
+        except Exception as e:
+            messagebox.showerror("Update Error", f"Could not push modifications online:\n{e}")
 
 class AuthFrame(ctk.CTkFrame):
     def __init__(self, parent, controller):
@@ -226,15 +232,21 @@ class AuthFrame(ctk.CTkFrame):
         ctk.CTkButton(self, text="Create Account", fg_color="transparent", border_width=2, command=self.register, width=250).pack(pady=(0, 20))
 
     def login(self):
-        user = self.controller.db.login_user(self.u_ent.get(), self.p_ent.get())
-        if user: 
-            self.controller.login_success(user)
-        else: 
-            messagebox.showerror("Error", "Login Details Incorrect.")
+        try:
+            user = self.controller.db.login_user(self.u_ent.get(), self.p_ent.get())
+            if user: 
+                self.controller.login_success(user)
+            else: 
+                messagebox.showerror("Error", "Login Details Incorrect.")
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Could not connect to MongoDB Atlas cluster cloud.\nError:\n{e}")
 
     def register(self):
-        success, msg = self.controller.db.create_user(self.u_ent.get(), self.p_ent.get())
-        messagebox.showinfo("Status", msg) if success else messagebox.showerror("Error", msg)
+        try:
+            success, msg = self.controller.db.create_user(self.u_ent.get(), self.p_ent.get())
+            messagebox.showinfo("Status", msg) if success else messagebox.showerror("Error", msg)
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Could not write configuration online.\nError:\n{e}")
 
 if __name__ == "__main__":
     app = MainApplication()
