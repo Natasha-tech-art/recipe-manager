@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
+from datetime import datetime
 
 # Import your database class from database.py
 from database import Database
@@ -57,11 +58,12 @@ class MainApplication(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("SmartMeal Pro - Recipe Manager")
-        self.geometry("1150x720")
+        self.geometry("1150x740")
         
         # Initialize database engine from database.py
         self.db = Database()
         self.current_user = None
+        self.selected_category_filter = "All"
 
         # Absolute Root Frame Viewport Manager Window
         self.container = ctk.CTkFrame(self)
@@ -98,18 +100,40 @@ class MainApplication(ctk.CTk):
         self.recipe_list_frame = ctk.CTkFrame(self.container, corner_radius=15)
         self.recipe_list_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
         
-        # Live Filter Bar
+        # Live Filter Bar Panel
         self.search_frame = ctk.CTkFrame(self.recipe_list_frame, fg_color="transparent")
-        self.search_frame.pack(fill="x", padx=10, pady=10)
+        self.search_frame.pack(fill="x", padx=10, pady=(10, 2))
 
-        self.search_entry = ctk.CTkEntry(self.search_frame, placeholder_text="🔍 Live search title, cuisine, or category...", width=300)
+        self.search_entry = ctk.CTkEntry(self.search_frame, placeholder_text="🔍 Live search title or cuisine...", width=300)
         self.search_entry.pack(side="left", padx=(0, 10), expand=True, fill="x")
         self.search_entry.bind("<KeyRelease>", lambda e: self.filter_recipes())
+
+        # Quick Category Filter Row Panel
+        self.filter_buttons_frame = ctk.CTkFrame(self.recipe_list_frame, fg_color="transparent")
+        self.filter_buttons_frame.pack(fill="x", padx=10, pady=(0, 10))
+
+        categories = ["All", "Breakfast", "Lunch", "Dinner", "Dessert", "Snack"]
+        self.filter_buttons = {}
+        for cat in categories:
+            btn = ctk.CTkButton(self.filter_buttons_frame, text=cat, width=90, height=28,
+                                fg_color="#1F6AA5" if cat == "All" else "gray30",
+                                command=lambda c=cat: self.set_category_filter(c))
+            btn.pack(side="left", padx=4)
+            self.filter_buttons[cat] = btn
 
         self.recipe_scroll = ctk.CTkScrollableFrame(self.recipe_list_frame, label_text="Your Personal Digital Cookbook Vault")
         self.recipe_scroll.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.load_recipes()
+
+    def set_category_filter(self, category):
+        self.selected_category_filter = category
+        for cat, btn in self.filter_buttons.items():
+            if cat == category:
+                btn.configure(fg_color="#1F6AA5")
+            else:
+                btn.configure(fg_color="gray30")
+        self.filter_recipes()
 
     def show_planner(self):
         for widget in self.container.winfo_children():
@@ -124,20 +148,28 @@ class MainApplication(ctk.CTk):
             recipes = self.db.get_user_recipes(self.current_user['username'])
             self.populate_scroll_list(recipes)
         except Exception as e:
-            print(f"Error loading dashboard scroll profiles: {e}")
+            print(f"Error loading dashboard profiles: {e}")
 
     def filter_recipes(self):
         query = self.search_entry.get().strip()
-        if not query:
-            self.load_recipes()
-            return
         try:
-            recipes = self.db.search_recipes(self.current_user['username'], query)
+            # Gather base records via database layer matching text query
+            if query:
+                base_recipes = self.db.search_recipes(self.current_user['username'], query)
+            else:
+                base_recipes = self.db.get_user_recipes(self.current_user['username'])
+
+            # Apply layout filter mapping matching category selections
+            if self.selected_category_filter != "All":
+                filtered = [r for r in base_recipes if r.get('category', '').lower() == self.selected_category_filter.lower()]
+            else:
+                filtered = base_recipes
+
             for widget in self.recipe_scroll.winfo_children():
                 widget.destroy()
-            self.populate_scroll_list(recipes)
+            self.populate_scroll_list(filtered)
         except Exception as e:
-            print(f"Filter tracking error: {e}")
+            print(f"Filter tracking query exception: {e}")
 
     def populate_scroll_list(self, recipes):
         for res in recipes:
@@ -152,7 +184,7 @@ class MainApplication(ctk.CTk):
     def open_add_recipe(self):
         self.add_win = ctk.CTkToplevel(self)
         self.add_win.title("Add New Recipe Profile")
-        self.add_win.geometry("520x760")
+        self.add_win.geometry("520x640")
         self.add_win.attributes("-topmost", True)
 
         ctk.CTkLabel(self.add_win, text="Recipe Title", font=("Helvetica", 12, "bold")).pack(pady=(12,2))
@@ -166,10 +198,6 @@ class MainApplication(ctk.CTk):
         ctk.CTkLabel(self.add_win, text="Meal Category Slot", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
         self.cat_cmb = ctk.CTkComboBox(self.add_win, values=["Breakfast", "Lunch", "Dinner", "Dessert", "Snack"], width=380)
         self.cat_cmb.pack()
-
-        ctk.CTkLabel(self.add_win, text="Recipe Score Rating", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
-        self.rat_cmb = ctk.CTkComboBox(self.add_win, values=["⭐ Excellent (5/5)", "⭐⭐⭐⭐ (4/5)", "⭐⭐⭐ (3/5)", "⭐⭐ (2/5)", "⭐ (1/5)"], width=380)
-        self.rat_cmb.pack()
 
         ctk.CTkLabel(self.add_win, text="Ingredients (One item per line)", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
         self.ing_txt = ctk.CTkTextbox(self.add_win, width=380, height=90)
@@ -191,7 +219,7 @@ class MainApplication(ctk.CTk):
             "title": self.title_ent.get().strip(),
             "cuisine": self.cuisine_ent.get().strip() if self.cuisine_ent.get().strip() else "General",
             "category": self.cat_cmb.get(),
-            "rating": self.rat_cmb.get(),
+            "rating": "⭐ Unrated", # Preserved data structure default fallback
             "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
             "instructions": self.ins_txt.get("0.0", "end").strip(),
             "owner": self.current_user['username']
@@ -214,18 +242,14 @@ class MainApplication(ctk.CTk):
         self.detail_win.attributes("-topmost", True)
         self.detail_win.focus()
 
-        # --- SCROLLABLE CONTAINER FRAME ---
         scroll_content = ctk.CTkScrollableFrame(self.detail_win, fg_color="transparent")
         scroll_content.pack(fill="both", expand=True, padx=15, pady=(15, 80))
 
-        # Title
         ctk.CTkLabel(scroll_content, text=recipe['title'], font=("Helvetica", 24, "bold"), text_color="#4CAF50").pack(pady=(10, 5), anchor="w")
         
-        # Subheaders
-        meta_text = f"Cuisine: {recipe.get('cuisine', 'General')}  |  Type: {recipe['category']}  |  {recipe.get('rating', '⭐ Unrated')}"
+        meta_text = f"Cuisine: {recipe.get('cuisine', 'General')}  |  Type: {recipe['category']}"
         ctk.CTkLabel(scroll_content, text=meta_text, font=("Helvetica", 12, "italic"), text_color="gray").pack(pady=(0, 20), anchor="w")
 
-        # Ingredients Label
         ctk.CTkLabel(scroll_content, text="📋 Required Ingredients Checklist:", font=("Helvetica", 14, "bold"), text_color="#FFF").pack(anchor="w", pady=(10, 5))
         
         ingredients_list = recipe.get('ingredients', [])
@@ -237,22 +261,18 @@ class MainApplication(ctk.CTk):
         if not ings.strip():
             ings = "  • No ingredients listed profile."
 
-        # Ingredients Box
         ing_display = ctk.CTkTextbox(scroll_content, width=500, height=120, font=("Helvetica", 13), fg_color=("gray85", "gray22"))
         ing_display.pack(fill="x", pady=5, anchor="w")
         ing_display.insert("0.0", ings)
         ing_display.configure(state="disabled")
 
-        # Instructions Label
         ctk.CTkLabel(scroll_content, text="🍳 Preparation Guide Instructions:", font=("Helvetica", 14, "bold"), text_color="#FFF").pack(anchor="w", pady=(20, 5))
         
-        # Instructions Box
         ins_box = ctk.CTkTextbox(scroll_content, width=500, height=180, font=("Helvetica", 13), fg_color=("gray85", "gray22"))
         ins_box.pack(fill="x", pady=5, anchor="w")
         ins_box.insert("0.0", recipe.get('instructions', 'No directions listed.'))
         ins_box.configure(state="disabled")
 
-        # --- PINNED BOTTOM ACTION BUTTONS BAR ---
         btn_frame = ctk.CTkFrame(self.detail_win, fg_color=("gray95", "gray14"), height=70, corner_radius=0)
         btn_frame.place(relx=0.0, rely=1.0, relwidth=1.0, anchor="sw")
 
@@ -277,7 +297,7 @@ class MainApplication(ctk.CTk):
         
         self.edit_win = ctk.CTkToplevel(self)
         self.edit_win.title(f"Editing: {recipe['title']}")
-        self.edit_win.geometry("520x760")
+        self.edit_win.geometry("520x660")
         self.edit_win.attributes("-topmost", True)
 
         ctk.CTkLabel(self.edit_win, text="Modify Recipe Title", font=("Helvetica", 12, "bold")).pack(pady=(12,2))
@@ -294,11 +314,6 @@ class MainApplication(ctk.CTk):
         self.edit_cat_cmb = ctk.CTkComboBox(self.edit_win, values=["Breakfast", "Lunch", "Dinner", "Dessert", "Snack"], width=380)
         self.edit_cat_cmb.pack()
         self.edit_cat_cmb.set(recipe['category'])
-
-        ctk.CTkLabel(self.edit_win, text="Recipe Score Rating", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
-        self.edit_rat_cmb = ctk.CTkComboBox(self.edit_win, values=["⭐ Excellent (5/5)", "⭐⭐⭐⭐ (4/5)", "⭐⭐⭐ (3/5)", "⭐⭐ (2/5)", "⭐ (1/5)"], width=380)
-        self.edit_rat_cmb.pack()
-        self.edit_rat_cmb.set(recipe.get('rating', "⭐⭐⭐⭐⭐ Excellent (5/5)"))
 
         ctk.CTkLabel(self.edit_win, text="Ingredients (One item per line)", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
         self.edit_ing_txt = ctk.CTkTextbox(self.edit_win, width=380, height=90)
@@ -321,7 +336,6 @@ class MainApplication(ctk.CTk):
             "title": self.edit_title_ent.get().strip(),
             "cuisine": self.edit_cuisine_ent.get().strip() if self.edit_cuisine_ent.get().strip() else "General",
             "category": self.edit_cat_cmb.get(),
-            "rating": self.edit_rat_cmb.get(),
             "ingredients": self.edit_ing_txt.get("0.0", "end").strip().split("\n"),
             "instructions": self.edit_ins_txt.get("0.0", "end").strip()
         }
