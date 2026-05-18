@@ -5,11 +5,11 @@ from bson.objectid import ObjectId
 
 class Database:
     def __init__(self):
-        # Forced Web-Port SRV Connection string to break through local router firewalls
+        # Your live MongoDB Atlas connection string
         self.uri = "mongodb+srv://natashabolyn4_db_user:xuOfmtUe3zgxk4AD@recipe-manager.gjr3ep.mongodb.net/?retryWrites=true&w=majority"
         
-        # Increased connection timeout window so it pushes through slower handshakes
-        self.client = MongoClient(self.uri, server_api=ServerApi('1'), serverSelectionTimeoutMS=5000)
+        # connect=False prevents the app from crashing on startup if your network drops the DNS query
+        self.client = MongoClient(self.uri, server_api=ServerApi('1'), connect=False, serverSelectionTimeoutMS=5000)
         self.db = self.client['RecipeManagerDB']
         
         # Collections

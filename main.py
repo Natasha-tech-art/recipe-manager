@@ -15,7 +15,7 @@ class MainApplication(ctk.CTk):
         self.db = Database()
         self.current_user = None
 
-        # Absolute Root Frame Viewport Manager Window
+        # Main Layout Container Window
         self.container = ctk.CTkFrame(self)
         self.container.pack(fill="both", expand=True)
 
@@ -35,18 +35,18 @@ class MainApplication(ctk.CTk):
         for widget in self.container.winfo_children():
             widget.destroy()
 
-        # 1. Sidebar Frame
+        # 1. Left Sidebar Panels
         self.sidebar = ctk.CTkFrame(self.container, width=220, corner_radius=0)
         self.sidebar.pack(side="left", fill="y")
         
         ctk.CTkLabel(self.sidebar, text="SmartMeal Pro", font=("Helvetica", 20, "bold")).pack(pady=20)
         
-        ctk.CTkButton(self.sidebar, text="+ Add Recipe", command=lambda: self.open_add_recipe()).pack(pady=10, padx=20)
-        ctk.CTkButton(self.sidebar, text="📅 Meal Planner", command=lambda: self.show_planner()).pack(pady=10, padx=20)
-        ctk.CTkButton(self.sidebar, text="Refresh Vault", command=lambda: self.load_recipes()).pack(pady=10, padx=20)
+        ctk.CTkButton(self.sidebar, text="+ Add Recipe", command=self.open_add_recipe).pack(pady=10, padx=20)
+        ctk.CTkButton(self.sidebar, text="📅 Meal Planner", command=self.show_planner).pack(pady=10, padx=20)
+        ctk.CTkButton(self.sidebar, text="Refresh Vault", command=self.load_recipes).pack(pady=10, padx=20)
         ctk.CTkButton(self.sidebar, text="Logout", fg_color="gray30", command=self.show_auth_page).pack(side="bottom", pady=20, padx=20)
 
-        # 2. Main content view block
+        # 2. Right Side Content Panel
         self.recipe_list_frame = ctk.CTkFrame(self.container, corner_radius=15)
         self.recipe_list_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
         
@@ -63,11 +63,11 @@ class MainApplication(ctk.CTk):
         self.load_recipes()
 
     def show_planner(self):
-        # Destroy all active panels to prevent layout frame stacking overlaps
+        # Clear main application container components completely
         for widget in self.container.winfo_children():
             widget.destroy()
         
-        # Structural Mount injection framework fix
+        # Build and display the calendar from planner.py
         self.planner_view = MealPlannerFrame(self.container, self)
         self.planner_view.pack(fill="both", expand=True, padx=20, pady=20)
 

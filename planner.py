@@ -7,26 +7,28 @@ class MealPlannerFrame(ctk.CTkFrame):
         super().__init__(parent, corner_radius=15)
         self.controller = controller
         
-        # 1. Title Header
+        # Title Header
         self.header = ctk.CTkLabel(self, text="📅 Live Meal Planner", font=("Helvetica", 24, "bold"))
         self.header.pack(pady=15)
 
-        # 2. Calendar Block
+        # Calendar View - User picks a date here
         self.cal = Calendar(self, selectmode='day', date_pattern='y-mm-dd')
         self.cal.pack(pady=10, padx=20)
+        
+        # When a user clicks a date, load that day's meal plan from MongoDB
         self.cal.bind("<<CalendarSelected>>", lambda e: self.load_day_plan())
 
-        # 3. Dynamic Visual Frame Container 
+        # Display Box to show scheduled items
         self.display_frame = ctk.CTkFrame(self, corner_radius=10, fg_color=("gray90", "gray16"))
         self.display_frame.pack(pady=15, padx=30, fill="both", expand=True)
 
         self.meal_labels = {}
         for meal in ["Breakfast", "Lunch", "Dinner"]:
             ctk.CTkLabel(self.display_frame, text=meal, font=("Helvetica", 12, "gray")).pack(pady=(8, 0))
-            self.meal_labels[meal] = ctk.CTkLabel(self.display_frame, text="Loading Live Data...", font=("Helvetica", 15, "bold"))
+            self.meal_labels[meal] = ctk.CTkLabel(self.display_frame, text="No Meal Planned", font=("Helvetica", 15, "bold"))
             self.meal_labels[meal].pack(pady=(0, 8))
 
-        # 4. Controls Frame Panel
+        # Bottom Navigation Control Buttons
         self.btn_container = ctk.CTkFrame(self, fg_color="transparent")
         self.btn_container.pack(side="bottom", pady=15)
 
@@ -34,7 +36,7 @@ class MealPlannerFrame(ctk.CTkFrame):
         ctk.CTkButton(self.btn_container, text="Back to Vault", fg_color="gray30", 
                       command=self.controller.show_dashboard).pack(side="left", padx=10)
         
-        # Initial call to sync data instantly on window view mount
+        # Pull data for today's date immediately upon opening
         self.load_day_plan()
 
     def load_day_plan(self):
@@ -47,18 +49,18 @@ class MealPlannerFrame(ctk.CTkFrame):
                 else:
                     self.meal_labels[meal].configure(text="No Meal Planned")
         except Exception as e:
-            messagebox.showerror("Live Query Error", f"Could not read from database cluster:\n{e}")
+            messagebox.showerror("Connection Error", f"Could not sync with cloud cluster:\n{e}")
 
     def add_meal(self):
-        meal_type = ctk.CTkInputDialog(text="Enter Meal Type (Breakfast/Lunch/Dinner):", title="Meal Slot").get_input()
+        meal_type = ctk.CTkInputDialog(text="Type meal slot (Breakfast, Lunch, or Dinner):", title="Meal Slot").get_input()
         if not meal_type: return
         meal_type = meal_type.strip().capitalize()
         
         if meal_type not in ["Breakfast", "Lunch", "Dinner"]:
-            messagebox.showwarning("Input Error", "Please input Breakfast, Lunch, or Dinner.")
+            messagebox.showwarning("Input Error", "Please type either Breakfast, Lunch, or Dinner.")
             return
 
-        recipe_name = ctk.CTkInputDialog(text=f"What are you making for {meal_type}?", title="Recipe Selection").get_input()
+        recipe_name = ctk.CTkInputDialog(text=f"What are you planning for {meal_type}?", title="Recipe Name").get_input()
         if not recipe_name or not recipe_name.strip(): return
 
         plan_data = {
@@ -70,6 +72,6 @@ class MealPlannerFrame(ctk.CTkFrame):
         try:
             self.controller.db.save_meal_plan(plan_data)
             self.load_day_plan()
-            messagebox.showinfo("Success", f"Saved directly to Cloud: Scheduled {recipe_name} for {meal_type}!")
+            messagebox.showinfo("Saved", f"Successfully saved {recipe_name} for {meal_type} online!")
         except Exception as e:
-            messagebox.showerror("Cloud Write Error", f"Could not push scheduling options upstream:\n{e}")
+            messagebox.showerror("Cloud Error", f"Could not save meal plan upstream:\n{e}")
