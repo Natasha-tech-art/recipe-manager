@@ -5,8 +5,8 @@ from bson.objectid import ObjectId
 
 class Database:
     def __init__(self):
-        # Replace the URI below with your actual MongoDB connection string
-        self.uri = "mongodb+srv://natashabolyn4_db_user:xuOfmtUe3zgxk4AD@recipe-manager.gjr3epx.mongodb.net/?appName=recipe-manager"
+        # Replace this URI with your actual MongoDB connection string
+        self.uri = "mongodb+srv://natashabolyn4_db_user:xuOfmtUe3zgxk4AD@recipe-manager.gjr3ep.mongodb.net/?retryWrites=true&w=majority"
         self.client = MongoClient(self.uri, server_api=ServerApi('1'))
         self.db = self.client['RecipeManagerDB']
         
@@ -27,58 +27,15 @@ class Database:
         user = self.users.find_one({"username": username, "password": hashed_pw})
         return user if user else None
 
-
     def add_recipe(self, recipe_data):
         try:
-            # Ensure new fields are present
             return self.recipes.insert_one(recipe_data)
         except Exception as e:
             print(f"DB Error: {e}")
             return None
 
-    def search_recipes(self, username, query):
-        # This searches for the query string in the title or category
-        return list(self.recipes.find({
-            "owner": username,
-            "$or": [
-                {"title": {"$regex": query, "$options": "i"}},
-                {"category": {"$regex": query, "$options": "i"}},
-                {"cuisine": {"$regex": query, "$options": "i"}}
-            ]
-        }))
-
     def get_user_recipes(self, username):
         return list(self.recipes.find({"owner": username}))
-    
-    
-    def save_meal_plan(self, plan_data):
-        try:
-            # Upsert logic: if a plan exists for this date, update it; otherwise, create it.
-            return self.meal_plans.update_one(
-                {"date": plan_data["date"], "owner": plan_data["owner"]},
-                {"$set": plan_data},
-                upsert=True
-            )
-        except Exception as e:
-            print(f"Planner Error: {e}")
-            return None
-        
-    def save_meal_plan(self, plan_data):
-        return self.meal_plans.update_one(
-            {"date": plan_data["date"], "owner": plan_data["owner"]},
-            {"$set": plan_data},
-            upsert=True
-        )
-
-    def get_meal_plan(self, date, username):
-        return self.meal_plans.find_one({"date": date, "owner": username})
-
-    def get_meal_plan(self, date, username):
-        return self.meal_plans.find_one({"date": date, "owner": username})
-    
-    from bson.objectid import ObjectId
-
-# ... inside your Database class ...
 
     def update_recipe(self, recipe_id, updated_data):
         try:
@@ -95,4 +52,36 @@ class Database:
             return self.recipes.delete_one({"_id": ObjectId(recipe_id)})
         except Exception as e:
             print(f"Delete Error: {e}")
+            return None
+
+    def search_recipes(self, username, query):
+        try:
+            return list(self.recipes.find({
+                "owner": username,
+                "$or": [
+                    {"title": {"$regex": query, "$options": "i"}},
+                    {"category": {"$regex": query, "$options": "i"}},
+                    {"cuisine": {"$regex": query, "$options": "i"}}
+                ]
+            }))
+        except Exception as e:
+            print(f"Search Error: {e}")
+            return []
+
+    def save_meal_plan(self, plan_data):
+        try:
+            return self.meal_plans.update_one(
+                {"date": plan_data["date"], "owner": plan_data["owner"]},
+                {"$set": plan_data},
+                upsert=True
+            )
+        except Exception as e:
+            print(f"Planner Save Error: {e}")
+            return None
+
+    def get_meal_plan(self, date, username):
+        try:
+            return self.meal_plans.find_one({"date": date, "owner": username})
+        except Exception as e:
+            print(f"Planner Get Error: {e}")
             return None
