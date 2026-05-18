@@ -4,63 +4,62 @@ from tkinter import messagebox
 
 class MealPlannerFrame(ctk.CTkFrame):
     def __init__(self, parent, controller):
-        # We give it a slightly different color so you know it switched!
-        super().__init__(parent, corner_radius=15, fg_color=("gray95", "gray12"))
+        # We use 'parent' to attach to the main window container
+        super().__init__(parent, corner_radius=15)
         self.controller = controller
         
-        # Title
-        ctk.CTkLabel(self, text="📅 Weekly Meal Planner", font=("Helvetica", 24, "bold")).pack(pady=20)
+        # 1. Page Header
+        ctk.CTkLabel(self, text="📅 Meal Planner", font=("Helvetica", 24, "bold")).pack(pady=20)
 
-        # 1. THE CALENDAR
-        # This is where you pick the date as per your instructions
+        # 2. The Calendar (Picking the date)
+        # Per your instructions: pick a date to see the meal for that day
         self.cal = Calendar(self, selectmode='day', date_pattern='y-mm-dd')
         self.cal.pack(pady=10, padx=20)
         
-        # Bind the click event
+        # This triggers load_day_plan every time you click a date
         self.cal.bind("<<CalendarSelected>>", lambda e: self.load_day_plan())
 
-        # 2. THE DISPLAY AREA
-        # This shows what is to be prepared on that day
+        # 3. The Meal Display (Showing what to prepare)
         self.display_frame = ctk.CTkFrame(self, corner_radius=10)
         self.display_frame.pack(pady=20, padx=40, fill="both", expand=True)
 
         self.meal_labels = {}
         for meal in ["Breakfast", "Lunch", "Dinner"]:
             ctk.CTkLabel(self.display_frame, text=meal, font=("Helvetica", 12, "gray")).pack(pady=(10, 0))
-            self.meal_labels[meal] = ctk.CTkLabel(self.display_frame, text="Empty Slot", font=("Helvetica", 16, "bold"))
+            self.meal_labels[meal] = ctk.CTkLabel(self.display_frame, text="Empty", font=("Helvetica", 16, "bold"))
             self.meal_labels[meal].pack(pady=(0, 10))
 
-        # 3. ACTION BUTTONS
-        btn_container = ctk.CTkFrame(self, fg_color="transparent")
-        btn_container.pack(pady=20)
+        # 4. Action Buttons
+        self.btn_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.btn_container.pack(pady=20)
 
-        ctk.CTkButton(btn_container, text="Assign Recipe", command=self.add_meal).pack(side="left", padx=10)
-        ctk.CTkButton(btn_container, text="Go to Vault", fg_color="gray30", 
+        ctk.CTkButton(self.btn_container, text="Schedule Meal", command=self.add_meal).pack(side="left", padx=10)
+        ctk.CTkButton(self.btn_container, text="Back to Vault", fg_color="gray30", 
                       command=self.controller.show_dashboard).pack(side="left", padx=10)
 
     def load_day_plan(self):
         selected_date = self.cal.get_date()
-        # Fetch from DB using the controller's database instance
+        # Uses the database functions from the main controller
         plan = self.controller.db.get_meal_plan(selected_date, self.controller.current_user['username'])
         
         for meal in ["Breakfast", "Lunch", "Dinner"]:
             if plan and meal.lower() in plan:
-                self.meal_labels[meal].configure(text=plan[meal.lower()])
+                self.plan_text = plan[meal.lower()]
+                self.meal_labels[meal].configure(text=self.plan_text)
             else:
                 self.meal_labels[meal].configure(text="No Meal Planned")
 
     def add_meal(self):
-        meal_type = ctk.CTkInputDialog(text="Enter Meal Type (Breakfast/Lunch/Dinner):", title="Schedule").get_input()
-        if not meal_type: return
+        self.meal_type = ctk.CTkInputDialog(text="Meal (Breakfast/Lunch/Dinner):", title="Slot").get_input()
+        if not self.meal_type: return
         
-        recipe_name = ctk.CTkInputDialog(text="Enter the Recipe Name:", title="Recipe Selection").get_input()
+        self.recipe_name = ctk.CTkInputDialog(text="Recipe Name:", title="Selection").get_input()
         
-        if recipe_name:
-            plan_data = {
+        if self.recipe_name:
+            self.plan_data = {
                 "date": self.cal.get_date(),
                 "owner": self.controller.current_user['username'],
-                meal_type.lower(): recipe_name
+                self.meal_type.lower(): self.recipe_name
             }
-            self.controller.db.save_meal_plan(plan_data)
-            self.load_day_plan() # Refresh the view immediately
-            messagebox.showinfo("Success", f"{recipe_name} scheduled for {meal_type}!")
+            self.controller.db.save_meal_plan(self.plan_data)
+            self.load_day_plan()

@@ -68,12 +68,14 @@ class MainApplication(ctk.CTk):
             self.load_recipes()
             
     def show_planner(self):
+        # Clear the current dashboard view
         for widget in self.container.winfo_children():
             widget.destroy()
         
+        # Create and show the planner
+        # Ensure 'self' is passed as the controller so it can access self.db
         self.planner_view = MealPlannerFrame(self.container, self)
-        self.planner_view.pack(fill="both", expand=True, padx=20, pady=20)
-
+        self.planner_view.pack(fill="both", expand=True)
     # --- DASHBOARD LAYOUT ---
 
     def show_dashboard(self):
