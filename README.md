@@ -39,6 +39,9 @@ pip install customtkinter pymongo tkcalendar Pillow
 
 ### 4.Ensure mongodb is running
 
-## A Screenshot for the dashboard
+## A Screenshot of the dashboard
 ![Screenshot](image.png)
+
+## Project by
+   NATASHA BOLYN
 
