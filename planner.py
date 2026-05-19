@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from tkinter import messagebox
 from tkcalendar import Calendar
-from datetime import date, datetime  # Handlers for current timeline tracking
+from datetime import date, datetime
 
 class MealPlannerFrame(ctk.CTkFrame):
     def __init__(self, parent, controller):
@@ -27,15 +27,14 @@ class MealPlannerFrame(ctk.CTkFrame):
         ctk.CTkLabel(self.left_panel, text="Select Planning Date Slot", 
                      font=("Helvetica", 16, "bold")).pack(pady=(5, 5))
 
-        # Core tkcalendar Widget Instantiation
-        # mindate=date.today() automatically blocks out all previous calendar days visually!
+        # Core tkcalendar Widget Instantiation with past dates blocked out
         self.calendar = Calendar(
             self.left_panel, 
             selectmode="day",
             year=date.today().year,
             month=date.today().month,
             day=date.today().day,
-            mindate=date.today(),  # Visual roadblock for past dates
+            mindate=date.today(),  
             background="#1F6AA5", 
             foreground="white", 
             headersbackground="gray20",
@@ -59,7 +58,7 @@ class MealPlannerFrame(ctk.CTkFrame):
                      font=("Helvetica", 16, "bold"), text_color="#4CAF50").pack(pady=15)
 
         # Dropdown Setup Elements for Menu Form Slots
-        ctk.CTkLabel(self.right_panel, text="Meal Segment Target:", font=("Helvetica", 12, "bold")).pack(anchor="w", padx=20, pady=(10, 2))
+        ctk.CTkLabel(self.right_panel, text="Meal Segment Target:", font=("Helvetica", 12, "bold")).pack(anchor="w", padx=20, pady=(5, 2))
         self.slot_cmb = ctk.CTkComboBox(self.right_panel, values=["Breakfast", "Lunch", "Dinner", "Snack", "Dessert"], width=240)
         self.slot_cmb.pack(padx=20)
 
@@ -67,14 +66,21 @@ class MealPlannerFrame(ctk.CTkFrame):
         self.recipe_cmb = ctk.CTkComboBox(self.right_panel, values=["No Recipes Loaded"], width=240)
         self.recipe_cmb.pack(padx=20)
 
-        # Action Buttons Layout Form Tracker
+        # Action Button to Commit Plans
         self.save_btn = ctk.CTkButton(self.right_panel, text="Commit Meal Plan", 
                                        fg_color="#4CAF50", command=self.save_meal_plan, width=240)
-        self.save_btn.pack(pady=25, padx=20)
+        self.save_btn.pack(pady=20, padx=20)
 
         # Real-time visual panel display of what's already saved for the chosen date
-        self.agenda_box = ctk.CTkTextbox(self.right_panel, width=260, height=240, font=("Helvetica", 12))
+        self.agenda_box = ctk.CTkTextbox(self.right_panel, width=260, height=180, font=("Helvetica", 12))
         self.agenda_box.pack(pady=10, padx=20)
+        
+        # --- SHOPPING LIST ACTION BUTTON ---
+        # Restored right beneath your text schedule layout view box
+        self.shop_btn = ctk.CTkButton(self.right_panel, text="🛒 Generate Shopping List", 
+                                      fg_color="#1F6AA5", hover_color="#144B75", 
+                                      command=self.generate_shopping_list, width=240)
+        self.shop_btn.pack(pady=(10, 20), padx=20)
         
         # Populate initial values instantly
         self.refresh_recipe_dropdown()
@@ -84,7 +90,6 @@ class MealPlannerFrame(ctk.CTkFrame):
         self.controller.show_dashboard()
 
     def refresh_recipe_dropdown(self):
-        """Fetches your created recipes from MongoDB and populates the dropdown menu option slot"""
         try:
             recipes = self.db.get_user_recipes(self.controller.current_user['username'])
             titles = [r['title'] for r in recipes]
@@ -98,26 +103,25 @@ class MealPlannerFrame(ctk.CTkFrame):
             print(f"Failed pulling recipes context for dropdown lists: {e}")
 
     def save_meal_plan(self):
-        """Validates restrictions and writes scheduling documents down to Database collection"""
-        selected_date_str = self.calendar.get_date()  # Typically returns "MM/DD/YY" or "M/D/YY"
+        selected_date_str = self.calendar.get_date()
         
-        # --- STRATEGIC SAFETY GUARD LAYER START ---
+        # Safety Guard Layer for Past Timelines
         try:
-            # Parse tkcalendar text out to compare values exactly with current system date
             parsed_date = datetime.strptime(selected_date_str, "%m/%d/%y").date()
             if parsed_date < date.today():
                 messagebox.showwarning("Timeline Violation", "You cannot schedule a meal plan for a day that has already passed!")
                 return
         except Exception as e:
-            print(f"Date structural safety guard validation bypassed or format variant: {e}")
-        # --- STRATEGIC SAFETY GUARD LAYER END ---
+            print(f"Date validation bypass: {e}")
 
         recipe_choice = self.recipe_cmb.get()
         if recipe_choice in ["No Recipes Loaded", "Please add recipes first", ""]:
             messagebox.showwarning("Missing Item", "Please select a valid recipe from your library before saving!")
             return
 
+        # FIXED HERE: Providing BOTH 'owner' and 'username' keys so it satisfies whatever your database.py script checks for!
         plan_data = {
+            "owner": self.controller.current_user['username'],
             "username": self.controller.current_user['username'],
             "date": selected_date_str,
             "slot": self.slot_cmb.get(),
@@ -125,7 +129,6 @@ class MealPlannerFrame(ctk.CTkFrame):
         }
 
         try:
-            # Write out to your MongoDB collection cluster index tracking
             self.db.save_meal_plan(plan_data)
             messagebox.showinfo("Success", f"{self.slot_cmb.get()} plan successfully locked in!")
             self.load_selected_day_plan()
@@ -133,7 +136,6 @@ class MealPlannerFrame(ctk.CTkFrame):
             messagebox.showerror("Database Write Failure", f"Failed pushing planner log profile:\n{e}")
 
     def load_selected_day_plan(self):
-        """Reads selected calendar slot dates and displays existing configurations"""
         selected_date_str = self.calendar.get_date()
         self.agenda_box.configure(state="normal")
         self.agenda_box.delete("0.0", "end")
@@ -152,3 +154,51 @@ class MealPlannerFrame(ctk.CTkFrame):
             self.agenda_box.insert("end", f"Error tracking index logs:\n{e}")
             
         self.agenda_box.configure(state="disabled")
+
+    def generate_shopping_list(self):
+        """Compiles an ingredients check list based on the active scheduled meals for the chosen day"""
+        selected_date_str = self.calendar.get_date()
+        try:
+            plans = self.db.get_meal_plans(self.controller.current_user['username'], selected_date_str)
+            if not plans:
+                messagebox.showinfo("Shopping List", f"No scheduled meals found for {selected_date_str}. Add some meals first!")
+                return
+
+            all_ingredients = []
+            user_recipes = self.db.get_user_recipes(self.controller.current_user['username'])
+            
+            # Map out database matches
+            recipe_map = {r['title'].lower().strip(): r for r in user_recipes}
+
+            for plan in plans:
+                title_lookup = plan['recipe_title'].lower().strip()
+                if title_lookup in recipe_map:
+                    target_recipe = recipe_map[title_lookup]
+                    ingredients = target_recipe.get('ingredients', [])
+                    if isinstance(ingredients, list):
+                        all_ingredients.extend(ingredients)
+                    elif isinstance(ingredients, str):
+                        all_ingredients.append(ingredients)
+
+            if not all_ingredients:
+                messagebox.showinfo("Shopping List", "The scheduled meals do not have any ingredients listed.")
+                return
+
+            # Format list with clean bullet points
+            cleaned_ingredients = sorted(list(set([i.strip() for i in all_ingredients if i.strip()])))
+            shopping_manifest = f"🛒 Shopping Ingredients List for {selected_date_str}:\n\n"
+            shopping_manifest += "\n".join([f" [ ]  {item}" for item in cleaned_ingredients])
+
+            # Show the generated list in a scrollable pop-up window
+            shop_win = ctk.CTkToplevel(self)
+            shop_win.title("Your Auto-Generated Shopping List")
+            shop_win.geometry("420x500")
+            shop_win.attributes("-topmost", True)
+
+            txt_display = ctk.CTkTextbox(shop_win, font=("Helvetica", 13))
+            txt_display.pack(fill="both", expand=True, padx=15, pady=15)
+            txt_display.insert("0.0", shopping_manifest)
+            txt_display.configure(state="disabled")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not generate items manifest list:\n{e}")
