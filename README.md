@@ -28,3 +28,17 @@ SmartMeal Pro is a modern desktop application built using Python and CustomTkint
 Follow these steps to set up and run the application locally on your machine.
 
 ### 1. Clone or Open the Project
+(https://github.com/Natasha-tech-art/recipe-manager.git)
+
+### 2.Set up a virtual environment
+python -m venv my_env
+my_env\Scripts\activate
+
+### 3.Install required dependencies
+pip install customtkinter pymongo tkcalendar Pillow
+
+### 4.Ensure mongodb is running
+
+## A Screenshot for the dashboard
+![Screenshot](image.png)
+
