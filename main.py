@@ -1,11 +1,11 @@
 import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
-from PIL import Image  # CustomTkinter compatible layout processing engine
+from PIL import Image
 
-# Import your database class from database.py
+# Import database engine
 from database import Database
-# Import your planner frame from planner.py
+# Import meal planner frame view sheet 
 from planner import MealPlannerFrame
 
 # Set up CustomTkinter appearance settings
@@ -61,12 +61,10 @@ class MainApplication(ctk.CTk):
         self.title("SmartMeal Pro - Recipe Manager")
         self.geometry("1150x740")
         
-        # Initialize database engine from database.py
         self.db = Database()
         self.current_user = None
         self.selected_category_filter = "All"
 
-        # Absolute Root Frame Viewport Manager Window
         self.container = ctk.CTkFrame(self)
         self.container.pack(fill="both", expand=True)
 
@@ -122,62 +120,57 @@ class MainApplication(ctk.CTk):
             btn.pack(side="left", padx=4)
             self.filter_buttons[cat] = btn
 
-        # --- DYNAMIC SWAPPABLE WORKSPACE ---
-        # Container to hold either our image gallery grid or our scrollable cookbooks list
-        self.content_workspace = ctk.CTkFrame(self.recipe_list_frame, fg_color="transparent")
-        self.content_workspace.pack(fill="both", expand=True, padx=10, pady=10)
-
-        self.recipe_scroll = ctk.CTkScrollableFrame(self.content_workspace, label_text="Your Personal Digital Cookbook Vault")
-        
-        # Build out the visual welcome grid setup immediately
+        # --- PERMANENT PERSISTENT LAYOUT DESIGN ---
+        # 1. Image Gallery stays fixed at the top of the view workspace
         self.build_image_gallery_grid()
+
+        # 2. Scroll view displays directly underneath the gallery, expanding to fill remaining space
+        self.recipe_scroll = ctk.CTkScrollableFrame(self.recipe_list_frame, label_text="Your Personal Digital Cookbook Vault")
+        self.recipe_scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        
         self.load_recipes()
 
     def build_image_gallery_grid(self):
-        """Creates the visual food gallery layout inside a clean container frame"""
-        self.gallery_frame = ctk.CTkFrame(self.content_workspace, fg_color="transparent")
-        self.gallery_frame.pack(fill="both", expand=True)
+        """Creates the food gallery inside a fixed container area at the top"""
+        self.gallery_frame = ctk.CTkFrame(self.recipe_list_frame, fg_color="transparent")
+        self.gallery_frame.pack(fill="x", padx=10, pady=(5, 10))
 
-        # Added subtitle requested header element
         subtitle_lbl = ctk.CTkLabel(self.gallery_frame, text="Examples of delicacies for different times", 
                                     font=("Helvetica", 15, "italic"), text_color="gray70")
-        subtitle_lbl.pack(pady=(5, 20))
+        subtitle_lbl.pack(pady=(5, 10))
 
-        # Grid system container to lay assets out in columns perfectly
         grid_container = ctk.CTkFrame(self.gallery_frame, fg_color="transparent")
-        grid_container.pack(expand=True)
+        grid_container.pack()
 
-        # Map your file paths directly to names labels
+        # Image asset structures
         food_items = [
             {"title": "breakfast", "path": "assets/breakfast.jpg", "row": 0, "col": 0},
             {"title": "lunch", "path": "assets/lunch.jpg", "row": 0, "col": 1},
             {"title": "dinner", "path": "assets/dinner.jpg", "row": 0, "col": 2},
-            {"title": "snack", "path": "assets/snack.jpg", "row": 1, "col": 0},
-            {"title": "dessert", "path": "assets/dessert.jpg", "row": 1, "col": 1}
+            {"title": "snack", "path": "assets/snack.jpg", "row": 0, "col": 3},
+            {"title": "dessert", "path": "assets/dessert.jpg", "row": 0, "col": 4}
         ]
 
-        # Hold image references safely in memory to defeat garbage collection
         self.keep_alive_images = []
 
         for item in food_items:
             try:
                 raw_image = Image.open(item["path"])
-                ctk_img = ctk.CTkImage(light_image=raw_image, dark_image=raw_image, size=(160, 110))
+                # Made size slightly more compact so all 5 look clean side-by-side in a single row
+                ctk_img = ctk.CTkImage(light_image=raw_image, dark_image=raw_image, size=(130, 90))
                 self.keep_alive_images.append(ctk_img)
 
-                # Custom cell frame grouping picture and label together
                 cell = ctk.CTkFrame(grid_container, fg_color="transparent")
-                cell.grid(row=item["row"], column=item["col"], padx=25, pady=15)
+                cell.grid(row=item["row"], column=item["col"], padx=12, pady=5)
 
                 img_lbl = ctk.CTkLabel(cell, image=ctk_img, text="")
                 img_lbl.pack()
 
-                txt_lbl = ctk.CTkLabel(cell, text=item["title"], font=("Helvetica", 12, "bold"), text_color="#4CAF50")
-                txt_lbl.pack(pady=(5, 0))
-            except Exception as e:
-                # Fault tolerance protection fallback if path configuration goes missing
-                error_box = ctk.CTkLabel(grid_container, text=f"[Missing {item['title']}]", font=("Helvetica", 11))
-                error_box.grid(row=item["row"], column=item["col"], padx=25, pady=15)
+                txt_lbl = ctk.CTkLabel(cell, text=item["title"], font=("Helvetica", 11, "bold"), text_color="#4CAF50")
+                txt_lbl.pack(pady=(2, 0))
+            except Exception:
+                error_box = ctk.CTkLabel(grid_container, text=f"[Missing {item['title']}]", font=("Helvetica", 10), text_color="gray50")
+                error_box.grid(row=item["row"], column=item["col"], padx=12, pady=5)
 
     def set_category_filter(self, category):
         self.selected_category_filter = category
@@ -219,24 +212,21 @@ class MainApplication(ctk.CTk):
             print(f"Filter tracking query exception: {e}")
 
     def display_correct_view(self, recipes_list):
-        """Intelligent swapper engine: toggles image gallery or scroll view to prevent conflicts"""
-        # If "All" is selected and search text is empty, display the beautiful food galleries panel
-        if self.selected_category_filter == "All" and not self.search_entry.get().strip():
-            self.recipe_scroll.pack_forget()
-            self.gallery_frame.pack(fill="both", expand=True)
-        else:
-            # Hide the graphics gallery panel and fill center area with matching recipes list cleanly
-            self.gallery_frame.pack_forget()
-            self.recipe_scroll.pack(fill="both", expand=True)
-            
-            for widget in self.recipe_scroll.winfo_children():
-                widget.destroy()
-            self.populate_scroll_list(recipes_list)
+        """Clears out and populates the lower scroll workspace list dynamically"""
+        for widget in self.recipe_scroll.winfo_children():
+            widget.destroy()
+        self.populate_scroll_list(recipes_list)
 
     def populate_scroll_list(self, recipes):
+        if not recipes:
+            no_rec_lbl = ctk.CTkLabel(self.recipe_scroll, text="No matching recipes found in this slot.", font=("Helvetica", 13, "italic"), text_color="gray60")
+            no_rec_lbl.pack(pady=20)
+            return
+
         for res in recipes:
             cuisine_tag = res.get('cuisine', 'General')
-            btn_text = f"{res['title']} ({cuisine_tag}) — Category: {res['category']}"
+            cat_tag = res.get('category', 'Unassigned')
+            btn_text = f"🍽️  {res['title']} ({cuisine_tag}) — Type: {cat_tag}"
             btn = ctk.CTkButton(self.recipe_scroll, text=btn_text, anchor="w", 
                                 fg_color="transparent", border_width=1,
                                 command=lambda r=res: self.view_recipe_details(r))
@@ -280,7 +270,6 @@ class MainApplication(ctk.CTk):
             "title": self.title_ent.get().strip(),
             "cuisine": self.cuisine_ent.get().strip() if self.cuisine_ent.get().strip() else "General",
             "category": self.cat_cmb.get(),
-            "rating": "⭐ Unrated", 
             "ingredients": self.ing_txt.get("0.0", "end").strip().split("\n"),
             "instructions": self.ins_txt.get("0.0", "end").strip(),
             "owner": self.current_user['username']
@@ -308,8 +297,8 @@ class MainApplication(ctk.CTk):
 
         ctk.CTkLabel(scroll_content, text=recipe['title'], font=("Helvetica", 24, "bold"), text_color="#4CAF50").pack(pady=(10, 5), anchor="w")
         
-        meta_text = f"Cuisine: {recipe.get('cuisine', 'General')}  |  Type: {recipe['category']}"
-        ctk.CTkLabel(scroll_content, text=meta_text, font=("Helvetica", 12, "italic"), text_color="gray").pack(pady=(0, 20), anchor="w")
+        meta_text = f"Cuisine: {recipe.get('cuisine', 'General')}  |  Category Slot: {recipe.get('category', 'Unassigned')}"
+        ctk.CTkLabel(scroll_content, text=meta_text, font=("Helvetica", 13, "italic"), text_color="gray").pack(pady=(0, 20), anchor="w")
 
         ctk.CTkLabel(scroll_content, text="📋 Required Ingredients Checklist:", font=("Helvetica", 14, "bold"), text_color="#FFF").pack(anchor="w", pady=(10, 5))
         
@@ -374,12 +363,12 @@ class MainApplication(ctk.CTk):
         ctk.CTkLabel(self.edit_win, text="Meal Category Slot", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
         self.edit_cat_cmb = ctk.CTkComboBox(self.edit_win, values=["Breakfast", "Lunch", "Dinner", "Dessert", "Snack"], width=380)
         self.edit_cat_cmb.pack()
-        self.edit_cat_cmb.set(recipe['category'])
+        self.edit_cat_cmb.set(recipe.get('category', 'Breakfast'))
 
         ctk.CTkLabel(self.edit_win, text="Ingredients (One item per line)", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
         self.edit_ing_txt = ctk.CTkTextbox(self.edit_win, width=380, height=90)
         self.edit_ing_txt.pack()
-        self.edit_ing_txt.insert("0.0", "\n".join(recipe['ingredients']))
+        self.edit_ing_txt.insert("0.0", "\n".join(recipe.get('ingredients', [])))
 
         ctk.CTkLabel(self.edit_win, text="Cooking & Preparation Instructions", font=("Helvetica", 12, "bold")).pack(pady=(8,2))
         self.edit_ins_txt = ctk.CTkTextbox(self.edit_win, width=380, height=120)
@@ -406,8 +395,11 @@ class MainApplication(ctk.CTk):
             self.edit_win.destroy()
             self.load_recipes()
         except Exception as e:
-            messagebox.showerror("UpdateError", f"Could not push modifications:\n{e}")
-            
+            messagebox.showerror("Update Error", f"Could not push modifications:\n{e}")
+
+# ==========================================
+# APPLICATION START EVENT LOOP
+# ==========================================
 if __name__ == "__main__":
     app = MainApplication()
-    app.mainloop()   
+    app.mainloop()
