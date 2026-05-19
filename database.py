@@ -1,38 +1,54 @@
-import hashlib
 from pymongo import MongoClient
-from pymongo.server_api import ServerApi
 from bson.objectid import ObjectId
 
 class Database:
     def __init__(self):
-        # Fire-walled network bypass connection string
+        # The explicit connection URI linked to your local MongoDB engine
         self.uri = "mongodb+srv://natashabolyn4_db_user:xuOfmtUe3zgxk4AD@recipe-manager.gjr3epx.mongodb.net/?appName=recipe-manager"
+        self.client = MongoClient(self.uri)
         
-        # Connect=False keeps the app stable while setting up the connection pipe
-        self.client = MongoClient(self.uri, server_api=ServerApi('1'), connect=False, serverSelectionTimeoutMS=5000)
-        self.db = self.client['RecipeManagerDB']
+        # Establishing database reference
+        self.db = self.client["smartmeal_db"]
         
-        # Collections
-        self.users = self.db['users']
-        self.recipes = self.db['recipes']
-        self.meal_plans = self.db['meal_plans']
+        # Mapping collections firmly so planner.py and main.py see them instantly
+        self.users = self.db["users"]
+        self.recipes = self.db["recipes"]
+        self.meals = self.db["meals"]
+        
+        print("🚀 Successfully connected to MongoDB via self.uri!")
 
+    # ==========================================
+    # USER ACCOUNT AUTHENTICATION
+    # ==========================================
     def create_user(self, username, password):
-        hashed_pw = hashlib.sha256(password.encode()).hexdigest()
+        if not username or not password:
+            return False, "Username and password cannot be empty."
         if self.users.find_one({"username": username}):
             return False, "Username already exists!"
-        self.users.insert_one({"username": username, "password": hashed_pw})
+        
+        self.users.insert_one({"username": username, "password": password})
         return True, "Account created successfully!"
 
     def login_user(self, username, password):
-        hashed_pw = hashlib.sha256(password.encode()).hexdigest()
-        return self.users.find_one({"username": username, "password": hashed_pw})
+        return self.users.find_one({"username": username, "password": password})
 
+    # ==========================================
+    # RECIPE VAULT MANAGEMENT
+    # ==========================================
     def add_recipe(self, recipe_data):
         return self.recipes.insert_one(recipe_data)
 
     def get_user_recipes(self, username):
         return list(self.recipes.find({"owner": username}))
+
+    def search_recipes(self, username, query):
+        return list(self.recipes.find({
+            "owner": username,
+            "$or": [
+                {"title": {"$regex": query, "$options": "i"}},
+                {"cuisine": {"$regex": query, "$options": "i"}}
+            ]
+        }))
 
     def update_recipe(self, recipe_id, updated_data):
         return self.recipes.update_one({"_id": ObjectId(recipe_id)}, {"$set": updated_data})
@@ -40,22 +56,21 @@ class Database:
     def delete_recipe(self, recipe_id):
         return self.recipes.delete_one({"_id": ObjectId(recipe_id)})
 
-    def search_recipes(self, username, query):
-        return list(self.recipes.find({
-            "owner": username,
-            "$or": [
-                {"title": {"$regex": query, "$options": "i"}},
-                {"category": {"$regex": query, "$options": "i"}},
-                {"cuisine": {"$regex": query, "$options": "i"}}
-            ]
-        }))
-
+    # ==========================================
+    # MEAL PLANNER INTERFACES
+    # ==========================================
     def save_meal_plan(self, plan_data):
-        return self.meal_plans.update_one(
-            {"date": plan_data["date"], "owner": plan_data["owner"]},
+        """Saves or updates a planned meal segment slot"""
+        return self.meals.update_one(
+            {
+                "username": plan_data["username"],
+                "date": plan_data["date"],
+                "slot": plan_data["slot"]
+            },
             {"$set": plan_data},
             upsert=True
         )
 
-    def get_meal_plan(self, date, username):
-        return self.meal_plans.find_one({"date": date, "owner": username})
+    def get_meal_plans(self, username, date_str):
+        """Fetches all scheduled recipe items for a given day."""
+        return list(self.meals.find({"username": username, "date": date_str}))
